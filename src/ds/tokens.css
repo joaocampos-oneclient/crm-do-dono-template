@@ -1,0 +1,138 @@
+/* ==========================================================================
+   Design System 2027 · TOKENS (copiado do CRM da IA para Donos)
+   Só variáveis. Sem seletor de componente. Sem dependência de Tailwind.
+   Tema claro é o padrão. Escuro: data-theme="dark" no wrapper `.ds-root` ou em
+   qualquer elemento dentro dele. Seções independentes podem ter tema próprio.
+
+   ADAPTAÇÃO DO REPO (PR DS): todos os tokens vivem DENTRO de `.ds-root` (não em
+   `:root`). O repo ainda tem áreas legadas que usam `--black`, `--ink`, `--surface-1`,
+   `--surface-2`, `--hairline`, `--white`, `--papel`, `--tinta`, `--r-2/4/6` em `:root`.
+   Escopar evita a colisão: só o que está dentro de `.ds-root` enxerga o DS 2027.
+   O bloco de aliases de compatibilidade foi REMOVIDO (o CRM não tem legado).
+   Contraste verificado: texto ≥ 4,5:1; texto grande e fg-dim ≥ 3:1;
+   bordas de controle (--control-border) ≥ 3:1.
+   ========================================================================== */
+
+.ds-root,
+.ds-root [data-theme="light"] {
+  color-scheme: light;
+  --bg: #F4F4F3;            /* página */
+  --bg-2: #EAEAE8;          /* seção alternada, fundo de cartão de plano */
+  --surface: #FFFFFF;       /* card, tile claro, input */
+  --surface-alt: #F7F7F6;   /* hover de linha, zebra */
+  --fg: #0A0A0A;            /* texto, botão primário, tile escuro */
+  --fg-2: rgba(10, 10, 10, .62);   /* lead, descrição            · 5,5:1 */
+  --fg-3: rgba(10, 10, 10, .60);   /* label mono, meta           · 5,1:1 */
+  --fg-dim: rgba(10, 10, 10, .45); /* 2ª metade de título ≥ 28px · 3,2:1 */
+  --line: rgba(10, 10, 10, .10);          /* divisória sutil */
+  --line-strong: rgba(10, 10, 10, .18);   /* divisória forte, conector */
+  --control-border: rgba(10, 10, 10, .50);/* borda de input/checkbox/switch · 3,7:1 */
+  --grid-dot: rgba(10, 10, 10, .09);
+
+  --inverse-bg: #0A0A0A;    /* painel de confiança: sempre o tema oposto */
+  --inverse-fg: #FFFFFF;
+  --inverse-fg-2: #A0A2A7;
+  --inverse-card: linear-gradient(rgba(32, 35, 39, .8), rgba(32, 35, 39, .05));
+
+  --verde: #52B788;         /* fato / no ar. Nunca fundo. ≤ 3% da área */
+  --verde-ink: #1E6B4B;     /* texto verde  · 5,9:1 */
+  --verde-wash: rgba(82, 183, 136, .14);
+  --roxo: #A96AFB;          /* só para a IA (robô, copiloto). máx. 2 pontos por página */
+  --roxo-ink: #7B3FD6;      /* texto roxo   · 5,4:1 */
+  --roxo-wash: rgba(169, 106, 251, .10);
+  --roxo-tile: #F0E6FE;
+  --live: #EF2D2D;          /* só AO VIVO, 1 por tela (dot) */
+  --live-ink: #C42B22;      /* texto AO VIVO sobre claro · 5,1:1 */
+
+  --glass-bg: rgba(10, 10, 10, .72);
+  --glass-border: rgba(255, 255, 255, .18);
+  --glass-fg: #FFFFFF;
+  --glass-fg-2: #C9CBD0;
+
+  --console-bg: #0A0A0A;
+  --console-fg: #EFEFEF;
+
+  --focus: #0A0A0A;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%230A0A0A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --check-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='10' viewBox='0 0 12 10'%3E%3Cpath d='M1 5.2 4.4 8.6 11 1.4' fill='none' stroke='%23F4F4F3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.ds-root[data-theme="dark"],
+.ds-root [data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #070707;
+  --bg-2: #0F0F0F;
+  --surface: #161616;
+  --surface-alt: #1C1C1C;
+  --fg: #FFFFFF;
+  --fg-2: #AFAFAF;
+  --fg-3: #AFAFAF;
+  --fg-dim: #6E6E6E;
+  --line: #1E1E1E;
+  --line-strong: #2E2E2E;
+  --control-border: #6E6E6E;
+  --grid-dot: rgba(255, 255, 255, .08);
+
+  --inverse-bg: #F4F4F3;
+  --inverse-fg: #0A0A0A;
+  --inverse-fg-2: rgba(10, 10, 10, .62);
+  --inverse-card: linear-gradient(rgba(255, 255, 255, .92), rgba(255, 255, 255, .45));
+
+  --verde-ink: #52B788;
+  --verde-wash: rgba(82, 183, 136, .14);
+  --roxo-ink: #A96AFB;
+  --roxo-wash: rgba(169, 106, 251, .14);
+  --roxo-tile: rgba(169, 106, 251, .16);
+  --live-ink: #EF2D2D;      /* vermelho sobre #070707 · 4,9:1 */
+
+  --glass-bg: rgba(15, 15, 15, .72);
+  --glass-border: rgba(255, 255, 255, .14);
+
+  --console-bg: #0F0F0F;
+
+  --focus: #FFFFFF;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23FFFFFF' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --check-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='10' viewBox='0 0 12 10'%3E%3Cpath d='M1 5.2 4.4 8.6 11 1.4' fill='none' stroke='%23070707' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Independentes de tema ---------------------------------------------------- */
+.ds-root {
+  /* Orbe da IA: única "imagem" da marca. Não usar como gradiente de fundo. */
+  --orb: radial-gradient(circle at 30% 28%, rgba(255,255,255,.95) 0 9%, rgba(255,255,255,0) 30%), radial-gradient(circle at 70% 78%, #D6F27A 0, rgba(214,242,122,0) 48%), radial-gradient(circle at 30% 70%, #9FD4FF 0, rgba(159,212,255,0) 55%), radial-gradient(circle at 60% 30%, #B580FF 0, #A96AFB 70%);
+
+  /* Fontes: variáveis injetadas pelo pacote `geist` (next/font). Fallbacks seguros. */
+  --font-sans: var(--font-geist-sans, 'Geist'), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono, 'Geist Mono'), ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Tipografia */
+  --w-display: 600; --w-h2: 520; --w-h3: 480; --w-body: 400; --w-label: 500; --w-light: 300;
+  --fs-display: clamp(36px, 5vw, 56px);  --lh-display: 1.04; --ls-display: -.03em;
+  --fs-h2: clamp(28px, 3.4vw, 40px);     --lh-h2: 1.1;       --ls-h2: -.025em;
+  --fs-h3: clamp(20px, 2vw, 24px);       --lh-h3: 1.15;      --ls-h3: -.02em;
+  --fs-lead: clamp(17px, 1.4vw, 19px);   --fs-body: clamp(16px, 1.2vw, 17px);
+  --fs-small: 14px; --fs-meta: 13px; --fs-label: 11px; --ls-label: .14em;
+
+  /* Espaço (base 4) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px;
+  --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-24: 96px;
+  --section-y: clamp(48px, 8vw, 96px);
+  --grid: 24px;
+
+  /* Raios: quanto maior o contêiner, maior o raio */
+  --r-xs: 6px; --r-sm: 12px; --r-btn: 16px; --r-tile: 18px; --r-bar: 20px;
+  --r-card: 24px; --r-panel: 30px; --r-section: 36px; --r-pill: 999px;
+
+  /* Alturas e alvos */
+  --h-btn-sm: 40px; --h-btn: 52px; --h-btn-lg: 60px; --h-pill: 32px; --h-bar: 72px; --h-nav: 64px;
+  --tile: 60px; --tile-sm: 42px; --tile-xs: 30px;
+  --touch: 44px;               /* alvo mínimo no celular */
+
+  /* Movimento */
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --dur-micro: 120ms; --dur-standard: 200ms; --dur-spatial: 360ms; --dur-reveal: 450ms;
+  --blur-glass: blur(16px) saturate(1.1);
+
+  /* Camadas */
+  --z-nav: 30; --z-fab: 35; --z-cta: 40; --z-overlay: 60; --z-toast: 70;
+}
