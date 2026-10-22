@@ -8,4 +8,5 @@ export * from './components/overlay';
 export * from './components/feedback';
 export * from './components/chat';
 export * from './components/cta';
+export * from './components/layout';
 export * from './theme-script';
