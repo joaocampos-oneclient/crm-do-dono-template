@@ -22,10 +22,13 @@ export interface CtxComando {
   novoId: () => string;
 }
 
+/** Resposta já redigida (ex.: por um LLM no servidor). As regras ainda validam antes de gravar. */
+export interface RespostaRobo { texto: string; nota?: number | null; acao?: "perguntar" | "nutrir" | "convidar" | "handoff" | "encerrar" }
+
 export type Comando =
   | { tipo: "criarLead"; nome: string; telefone: string; origem: string; empresa?: string; segmento?: string; cidade?: string; email?: string; produtoId?: string; valor?: number; mensagemInicial?: string; abrirConversa?: boolean; por?: string }
   | { tipo: "salvarContato"; contato: Partial<Contato> & { id?: string; nome: string; telefone: string } }
-  | { tipo: "receberMensagem"; contatoId: string; texto: string; respostaRobo?: { texto: string; nota?: number | null; acao?: "perguntar" | "nutrir" | "convidar" | "handoff" | "encerrar" } }
+  | { tipo: "receberMensagem"; contatoId: string; texto: string; respostaRobo?: RespostaRobo }
   | { tipo: "enviarMensagem"; contatoId: string; texto: string; operadorId: string }
   | { tipo: "assumirConversa"; contatoId: string; operadorId: string }
   | { tipo: "devolverConversa"; contatoId: string; operadorId: string }

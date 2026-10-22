@@ -81,7 +81,7 @@ export const proximoTermometro = (t: Termometro | null): Termometro | null => {
 
 /** Preenche {nome}, {empresa}, {produto}, {operador}, {link}, {primeiroNome} num template. */
 export function preencherTemplate(texto: string, vars: Record<string, string | undefined>) {
-  return texto.replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? `{${k}}`);
+  return texto.replace(/\{([^{}]+)\}/g, (_, k: string) => vars[k.trim()] ?? `{${k}}`);
 }
 
 export const primeiroNome = (nome: string) => nome.trim().split(/\s+/)[0] ?? nome;
