@@ -76,7 +76,7 @@ describe("webhook do WhatsApp", () => {
     const r = await req("/api/webhooks/whatsapp", { method: "POST", json: { telefone: "(62) 90000-0006", texto: "pode perguntar" } });
     const j = await r.json();
     expect(j.respostas[0]).toMatch(/0 a 10/);
-    expect(adaptadores.saidas().some((s) => s.canal === "whatsapp" && /0 a 10/.test(s.resumo))).toBe(true);
+    expect(adaptadores.saidas().some((s) => s.canal === "whatsapp" && /0 a 10/.test(String(s.detalhe)))).toBe(true);
   });
   it("número desconhecido vira lead e a nota 9 vira handoff", async () => {
     const r = await req("/api/webhooks/whatsapp", { method: "POST", json: { telefone: "62988880000", texto: "9. quero falar com alguém", nome: "Novo" } });

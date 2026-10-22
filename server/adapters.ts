@@ -19,7 +19,7 @@ export function adaptadoresLocais(): AdaptadoresServidor {
   return {
     whatsapp: {
       async enviar(telefone, texto) {
-        registrar({ canal: "whatsapp", para: telefone, resumo: texto.slice(0, 120) });
+        registrar({ canal: "whatsapp", para: telefone, resumo: texto.slice(0, 120), detalhe: texto });
         return { ok: true, id: `local-wa-${Date.now()}` };
       },
     },
