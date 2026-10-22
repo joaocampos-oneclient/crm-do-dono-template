@@ -1,16 +1,10 @@
 /**
- * Adaptadores: a porta entre o CRM e o mundo de fora.
- * No template, todos são SIMULADOS (mock). Para ligar o real, crie uma implementação nova
- * (ex.: whatsapp.zapi.ts) com a mesma interface e troque a linha em `adapters` no final.
+ * Adaptadores do NAVEGADOR: a porta entre as telas e o mundo de fora (telefonia, transcrição).
+ * No template são SIMULADOS (mock.ts). As integrações de servidor (WhatsApp, e-mail, pagamento)
+ * ficam em server/adapters/, porque precisam de segredo e não podem rodar no navegador.
  * Troque UMA integração por vez e teste antes da próxima.
  */
-export interface WhatsAppAdapter {
-  enviar(telefone: string, texto: string): Promise<{ ok: boolean; id: string }>;
-}
-
-export interface PagamentoAdapter {
-  criarLink(opts: { contatoId: string; valor: number; validadeDias: number }): Promise<{ url: string; expiraEm: string }>;
-}
+import type { Termometro, TrechoLigacao } from "../domain/types";
 
 export interface TelefoniaAdapter {
   /** Só liga depois do aviso de gravação. */
@@ -18,22 +12,20 @@ export interface TelefoniaAdapter {
 }
 
 export interface TranscricaoAdapter {
-  transcrever(ligacaoId: string): Promise<{ trechos: { quem: "vendedor" | "contato"; texto: string; hora: string }[] }>;
-}
-
-export interface CopilotoAdapter {
-  sugerir(contexto: string): Promise<{ titulo: string; porque: string }[]>;
+  transcrever(ligacaoId: string, contexto: { nome: string; dor?: string; segmento?: string }): Promise<{
+    trechos: TrechoLigacao[];
+    resumo: string;
+    termometroIA: Termometro;
+    followups: { texto: string; quando: string }[];
+  }>;
 }
 
 export interface Adapters {
-  whatsapp: WhatsAppAdapter;
-  pagamento: PagamentoAdapter;
   telefonia: TelefoniaAdapter;
   transcricao: TranscricaoAdapter;
-  copiloto: CopilotoAdapter;
 }
 
 import { mockAdapters } from "./mock";
 
-/** Troque aqui, um por vez: { ...mockAdapters, whatsapp: meuWhatsAppReal } */
+/** Troque aqui, um por vez: { ...mockAdapters, telefonia: minhaTelefoniaReal } */
 export const adapters: Adapters = mockAdapters;
