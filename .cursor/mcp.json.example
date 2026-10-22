@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "crm-do-dono": {
+      "command": "npx",
+      "args": ["tsx", "server/mcp.ts"],
+      "env": {
+        "CRM_API_URL": "http://localhost:8787",
+        "CRM_API_KEY": "crm_leitura_exemplo_troque_esta_chave"
+      }
+    }
+  }
+}
