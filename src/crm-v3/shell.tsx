@@ -63,8 +63,8 @@ function NavLink({
 }
 
 function tituloDaRota(pathBruto: string): { title: string; novo?: boolean } {
-  const path = pathBruto.replace(/^\/crm(?=\/|$)/, "") || "/";
-  if (path === "/") return { title: "Hoje", novo: true };
+  const path = (pathBruto.split("?")[0] || "/").replace(/^\/crm(?=\/|$)/, "") || "/";
+  if (path === "/" || path === "/hoje") return { title: "Hoje", novo: true };
   if (path.startsWith("/funil")) return { title: "Funil" };
   if (path.startsWith("/conversas")) return { title: "Conversas" };
   if (path.startsWith("/leads")) return { title: "Leads" };

@@ -78,8 +78,9 @@ export function maisMobile(papel: CrmPapelNav): NavItem[] {
 }
 
 export function idAtivo(itens: NavItem[], pathBruto: string): string {
-  const path = pathBruto.replace(/^\/crm(?=\/|$)/, "") || "/";
-  if (path === "/") return "hoje";
+  const path = (pathBruto.split("?")[0] || "/").replace(/^\/crm(?=\/|$)/, "") || "/";
+  if (path === "/" || path === "/hoje") return "hoje";
+  if (path.startsWith("/contatos")) return "leads";
   const hit = itens
     .filter((i) => i.href !== "/")
     .sort((a, b) => b.href.length - a.href.length)
