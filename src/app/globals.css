@@ -22,8 +22,9 @@ code, pre, .ds-mono, .ds-label, .ds-pre {
   font-family: var(--font-geist-mono);
 }
 
+/* Card parado / farol: tinta (não vermelho — vermelho é só AO VIVO). */
 .ds-farol-vermelho {
-  outline: 2px solid var(--ink, #0A0A0A);
+  outline: 2px solid var(--fg, #0A0A0A);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;

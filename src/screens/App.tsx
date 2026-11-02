@@ -1,9 +1,10 @@
 "use client";
 import * as React from "react";
-import { Badge, Banner, Button, Card, Fab, Segmented, Shell, Sidebar, useToast, type NavItem } from "@/ds";
+import { Badge, Banner, Button, Card, Fab, Segmented, Shell, Sidebar, TabBar, useToast, type NavItem } from "@/ds";
 import { CRMProvider, useCRM, type Tela } from "@/components/crm/provider";
 import type { EstadoCRM } from "@/domain/types";
 import type { RepositorioCRM } from "@/repo";
+import { NAV_DESKTOP, NAV_MOBILE_PRIMARY, telaNoMais } from "@/lib/nav";
 import { Demandas } from "./Demandas";
 import { Hoje } from "./Hoje";
 import { FunilKanban } from "./FunilKanban";
@@ -49,16 +50,16 @@ function Interno() {
   return <Painel />;
 }
 
-/** Escolha do operador. É um "login" local, sem senha: serve para registrar quem fez o quê. Auth de verdade: docs/banco-de-dados.md. */
+/** Escolha do operador (demo local). Produção usa /entrar com magic link. */
 function Entrada() {
   const { estado, entrar } = useCRM();
   const humanos = estado.operadores.filter((o) => o.tipo === "humano" && o.ativo);
   return (
-    <div className="ds-gate" style={{ display: "grid", gap: 16, justifyItems: "center", padding: 24 }}>
-      <Card className="ds-gate__card">
-        <div className="ds-label">{estado.config.nomeEmpresa} · CRM do dono</div>
-        <h1 style={{ margin: 0, fontSize: 26, letterSpacing: "-0.02em" }}>Quem está entrando?</h1>
-        <p className="ds-muted" style={{ margin: 0 }}>Tudo que você fizer fica registrado no seu nome: mensagens, ligações, notas e movimentos do funil.</p>
+    <div className="ds-gate ds-gate--login">
+      <div className="ds-gate__eyebrow ds-label">CRM · {estado.config.nomeEmpresa}</div>
+      <Card className="ds-gate__card ds-gate__card--login">
+        <h1 className="ds-gate__title">Quem está entrando?</h1>
+        <p className="ds-gate__lead">Modo demo: escolha o operador. Em produção o gate é magic link em <a href="/entrar">/entrar</a>.</p>
         <div className="ds-oplist">
           {humanos.map((o) => (
             <button key={o.id} type="button" className="ds-row" onClick={() => entrar(o.id)}>
@@ -68,36 +69,22 @@ function Entrada() {
             </button>
           ))}
         </div>
-        <p className="ds-muted" style={{ margin: 0, fontSize: 13 }}>Dados de exemplo. Para zerar e começar do seu jeito: Integrações → "Começar do zero".</p>
+        <p className="ds-muted" style={{ margin: 0, fontSize: 13 }}>Dados de exemplo. Para zerar: Integrações → &quot;Começar do zero&quot;.</p>
       </Card>
-      <div style={{ width: "min(560px, 100%)" }}>
+      <div style={{ width: "min(420px, 100%)", marginTop: 8 }}>
         <WhatsAppOnboarding compact />
       </div>
     </div>
   );
 }
 
-const TELAS: { id: Tela; label: string; grupo: string }[] = [
-  { id: "demandas", label: "Demandas", grupo: "Operação" },
-  { id: "hoje", label: "Hoje", grupo: "Operação" },
-  { id: "funil", label: "Funil", grupo: "Operação" },
-  { id: "conversas", label: "Conversas", grupo: "Operação" },
-  { id: "contatos", label: "Contatos", grupo: "Operação" },
-  { id: "agentes", label: "Agentes", grupo: "Operação" },
-  { id: "relatorios", label: "Relatórios", grupo: "Gestão" },
-  { id: "ocorrencias", label: "Ocorrências", grupo: "Gestão" },
-  { id: "playbook", label: "Playbook", grupo: "Configuração" },
-  { id: "produtos", label: "Produtos e funis", grupo: "Configuração" },
-  { id: "operadores", label: "Operadores e chaves", grupo: "Configuração" },
-  { id: "templates", label: "Templates", grupo: "Configuração" },
-  { id: "integracoes", label: "Integrações", grupo: "Configuração" },
-];
-
 function Painel() {
   const crm = useCRM();
   const { estado, rota, operador, sair, contatos, agora } = crm;
   const toast = useToast();
   const [tema, setTema] = React.useState<"light" | "dark">(document.querySelector(".ds-root")?.getAttribute("data-theme") === "dark" ? "dark" : "light");
+  const [maisAberto, setMaisAberto] = React.useState(false);
+
   const trocarTema = (v: "light" | "dark") => {
     const el = document.querySelector<HTMLElement>(".ds-root");
     if (el) { el.setAttribute("data-theme", v); el.style.colorScheme = v; }
@@ -109,12 +96,25 @@ function Painel() {
   const ocorrencias = estado.ocorrencias.filter((o) => o.status !== "resolvida").length;
   const tarefasVencidas = estado.tarefas.filter((t) => !t.feita && t.venceEm && Date.parse(t.venceEm) < Date.parse(agora)).length;
   const badges: Partial<Record<Tela, number>> = { conversas: handoffs, ocorrencias, hoje: handoffs + tarefasVencidas };
-  const items: NavItem[] = TELAS.map((t) => ({ id: t.id, label: t.label, href: `#/${t.id}`, grupo: t.grupo, badge: badges[t.id] ? badges[t.id] : undefined }));
+
+  const items: NavItem[] = NAV_DESKTOP.map((t) => ({
+    id: t.id,
+    label: t.label,
+    href: `#/${t.id}`,
+    grupo: t.grupo,
+    badge: badges[t.id] ? badges[t.id] : undefined,
+  }));
+
+  const mobileActive = telaNoMais(rota.tela) || maisAberto ? "mais" : rota.tela;
 
   React.useEffect(() => {
     if (crm.repo.origem === "local") return;
     toast.push("Conectado ao servidor local. Leads via webhook aparecem aqui sozinhos.");
   }, [crm.repo.origem, toast]);
+
+  React.useEffect(() => {
+    if (!telaNoMais(rota.tela)) setMaisAberto(false);
+  }, [rota.tela]);
 
   const tela = (() => {
     switch (rota.tela) {
@@ -134,30 +134,126 @@ function Painel() {
     }
   })();
 
+  const maisItens = NAV_DESKTOP.filter((t) => telaNoMais(t.id));
+
   return (
     <Shell
       sidebar={
         <Sidebar
           items={items}
           activeId={rota.tela}
-          brand={<div><div className="ds-label">{estado.config.nomeEmpresa}</div><strong>CRM do dono</strong></div>}
+          brand={
+            <div>
+              <div className="ds-label">{estado.config.nomeEmpresa}</div>
+              <strong>CRM do dono</strong>
+            </div>
+          }
           footer={
             <>
               <div className="ds-wrap" style={{ justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13 }}><span className="ds-avatar ds-avatar--ink" style={{ marginRight: 6 }}>{iniciais(operador!.nome)}</span>{operador!.nome}</span>
+                <span style={{ fontSize: 13 }}>
+                  <span className="ds-avatar ds-avatar--ink" style={{ marginRight: 6 }}>{iniciais(operador!.nome)}</span>
+                  {operador!.nome}
+                </span>
                 <Button size="sm" variant="ghost" onClick={sair}>Sair</Button>
               </div>
-              <Segmented name="tema" label="Tema" value={tema} onChange={trocarTema} options={[{ value: "light", label: "Claro" }, { value: "dark", label: "Escuro" }]} />
+              <Segmented
+                name="tema"
+                label="Tema"
+                value={tema}
+                onChange={trocarTema}
+                options={[
+                  { value: "light", label: "Claro" },
+                  { value: "dark", label: "Escuro" },
+                ]}
+              />
               <Badge tone="dashed">{crm.repo.origem === "local" ? "dados no navegador" : "servidor local"}</Badge>
             </>
           }
         />
       }
     >
-      {crm.repo.origem === "local" && rota.tela === "demandas" && (
-        <Banner>Este CRM está rodando só no seu navegador, com dados de exemplo. Para receber leads de verdade por webhook e conectar o Grokbot, veja <a href="#/integracoes">Integrações</a>.</Banner>
+      {crm.repo.origem === "local" && rota.tela === "hoje" && (
+        <Banner>
+          Este CRM está rodando só no seu navegador, com dados de exemplo. Para receber leads de verdade por webhook e conectar o Grokbot, veja{" "}
+          <a href="#/integracoes">Integrações</a>.
+        </Banner>
       )}
       {tela}
+
+      {/* Mobile 2: sheet "Mais" */}
+      {maisAberto && (
+        <div className="ds-mais" role="dialog" aria-label="Mais telas">
+          <div className="ds-mais__scrim" onClick={() => setMaisAberto(false)} />
+          <div className="ds-mais__sheet">
+            <div className="ds-mais__head">
+              <strong>Mais</strong>
+              <Button size="sm" variant="ghost" onClick={() => setMaisAberto(false)}>Fechar</Button>
+            </div>
+            <div className="ds-mais__list">
+              {maisItens.map((t) => (
+                <a
+                  key={t.id}
+                  href={`#/${t.id}`}
+                  className="ds-mais__item"
+                  aria-current={rota.tela === t.id ? "page" : undefined}
+                  onClick={() => setMaisAberto(false)}
+                >
+                  <span className="ds-mais__item-main">
+                    <strong>{t.label}</strong>
+                    <span className="ds-label">{t.grupo}</span>
+                  </span>
+                </a>
+              ))}
+              <button type="button" className="ds-mais__item" onClick={() => { sair(); setMaisAberto(false); }}>
+                <span className="ds-mais__item-main">
+                  <strong>Sair</strong>
+                  <span className="ds-label">{operador!.nome}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile 2: Hoje · Funil · Conversas · Leads · Mais (vidro na barra) */}
+      <div className="ds-mobile-nav">
+        <TabBar
+          activeId={mobileActive}
+          items={NAV_MOBILE_PRIMARY.map((t) => ({
+            id: t.id,
+            label: t.label,
+            href: t.id === "mais" ? "#mais" : `#/${t.id}`,
+          }))}
+          renderLink={({ href, className, "aria-current": cur, children }) => {
+            if (href === "#mais") {
+              return (
+                <button
+                  key="mais"
+                  type="button"
+                  className={className}
+                  aria-current={cur}
+                  onClick={() => setMaisAberto((v) => !v)}
+                >
+                  {children}
+                </button>
+              );
+            }
+            return (
+              <a
+                key={href}
+                href={href}
+                className={className}
+                aria-current={cur}
+                onClick={() => setMaisAberto(false)}
+              >
+                {children}
+              </a>
+            );
+          }}
+        />
+      </div>
+
       <Fab label="Discagem rápida: ligar para um número" onClick={crm.discar} title="Discagem rápida" />
     </Shell>
   );

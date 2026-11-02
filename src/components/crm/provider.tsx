@@ -13,11 +13,14 @@ import type { RepositorioCRM } from "@/repo";
 export type Tela = "demandas" | "hoje" | "funil" | "conversas" | "contatos" | "agentes" | "playbook" | "produtos" | "operadores" | "templates" | "relatorios" | "ocorrencias" | "integracoes";
 export interface Rota { tela: Tela; id?: string }
 
+/** Home Desktop/Mobile v2. */
+export const TELA_PADRAO: Tela = "hoje";
+
 const TELAS: Tela[] = ["demandas", "hoje", "funil", "conversas", "contatos", "agentes", "playbook", "produtos", "operadores", "templates", "relatorios", "ocorrencias", "integracoes"];
 
 export const lerRota = (hash: string): Rota => {
   const [tela, id] = hash.replace(/^#\/?/, "").split("/");
-  return { tela: (TELAS as string[]).includes(tela) ? (tela as Tela) : "demandas", id: id || undefined };
+  return { tela: (TELAS as string[]).includes(tela) ? (tela as Tela) : TELA_PADRAO, id: id || undefined };
 };
 export const paraHash = (r: Rota) => `#/${r.tela}${r.id ? `/${r.id}` : ""}`;
 

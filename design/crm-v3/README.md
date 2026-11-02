@@ -1,19 +1,40 @@
 # Design CRM v3
 
-Referência visual da live (28/10/2026).
+Referência visual da live (28/10/2026) — Desktop v2 / Mobile 2.
 
-O pacote completo (`prototipos/`, `tokens/`, `components/crm-ui.tsx`, `design-system-2027/`) vem do export Claude Design `CRMIPD - IA Para Donos.zip`.
+## O que há neste repo
 
-Neste repositório a fonte de verdade em código é:
+| Caminho | Conteúdo |
+| --- | --- |
+| `src/design-system-2027/` | Tokens + componentes (fonte de verdade em código) |
+| `src/lib/nav.ts` | Sidebar 3 grupos + tabbar mobile Hoje·Funil·Conversas·Leads·Mais |
+| `src/screens/App.tsx` | Casca Desktop v2 / Mobile 2 |
+| `src/app/entrar/page.tsx` | Gate magic-link fiel a `crm.iaparadonos.com/entrar` |
+| `design/crm-v3/reference/` | Capturas públicas do CRM em produção (só login) |
 
-- Tokens e CSS: `src/design-system-2027/`
-- Componentes de UI do CRM: `src/screens/` + `src/design-system-2027/components/`
-- Tokens de produto: `crm.config.ts`
+## O que **não** está versionado
 
-Para atualizar o visual a partir de um novo export:
+O pacote Claude Design `CRMIPD - IA Para Donos.zip` (**prototipos/**, HTML/PNG Desktop v2 e Mobile 2) **não foi encontrado** em nenhuma branch nem no histórico deste repositório (`main`, `cursor/crm-v3-instalavel-83e7`, `cursor/crm-do-dono-completo-7025`). Só este README citava o zip.
+
+Para atualizar a partir de um novo export:
 
 1. Descompacte o zip em `design/crm-v3/export/`
 2. Diff dos tokens com `src/design-system-2027/tokens/`
-3. Aplique Desktop v2 / Mobile 2 na casca (`src/screens/App.tsx`, sidebar em 3 grupos)
+3. Confira a casca em `src/screens/App.tsx` + `src/lib/nav.ts`
 
-Decisões D1–D6 (confirmadas): base DS 2027, acento tinta, cores de agente só em glifo 16px, card parado usa tinta (não vermelho), nav mobile Hoje·Funil·Conversas·Leads·Mais, vidro só nas barras.
+## Referência usada nesta entrega
+
+Sem o zip, a fidelidade usou:
+
+1. Tokens já portados em `src/design-system-2027/` (DS 2027)
+2. Decisões D1–D6 (abaixo)
+3. Captura pública de https://crm.iaparadonos.com/entrar (demais telas exigem magic link — não acessíveis sem credencial)
+
+## Decisões D1–D6 (confirmadas)
+
+1. Base DS 2027
+2. Acento tinta (`--fg`)
+3. Cores de agente só em glifo 16px
+4. Card parado usa tinta (não vermelho)
+5. Nav mobile: **Hoje · Funil · Conversas · Leads · Mais**
+6. Vidro só nas barras (tabbar / toast / CTA)

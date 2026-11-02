@@ -1,7 +1,7 @@
 /* Estilos das peças de layout do CRM. Usa só tokens de tokens.css. */
 
 .ds-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100dvh; }
-.ds-shell__main { padding: 20px 24px 120px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.ds-shell__main { padding: 20px 24px 48px; display: grid; gap: 16px; align-content: start; min-width: 0; }
 
 .ds-sidebar { position: sticky; top: 0; align-self: start; height: 100dvh; overflow: auto; border-right: 1px solid var(--line); padding: 16px 12px; display: flex; flex-direction: column; gap: 14px; background: var(--bg-2); }
 .ds-sidebar__brand { padding: 4px 8px 8px; }
@@ -14,13 +14,72 @@
 .ds-sidebar__item[aria-current="page"] .ds-sidebar__badge { background: var(--bg); }
 .ds-sidebar__foot { margin-top: auto; padding: 8px; display: grid; gap: 8px; }
 
+/* Mobile 2: tabbar de vidro; sidebar some (navegação = 5 abas) */
+.ds-mobile-nav {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  pointer-events: auto;
+}
+.ds-mobile-nav .ds-tabbar {
+  background: var(--glass-bg);
+  color: var(--glass-fg);
+  border-top: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+}
+.ds-mobile-nav .ds-tabbar__item { color: var(--glass-fg-2); background: transparent; border: 0; cursor: pointer; font: inherit; }
+.ds-mobile-nav .ds-tabbar__item[aria-current="page"] { color: var(--glass-fg); }
+
+.ds-mais { position: fixed; inset: 0; z-index: calc(var(--z-nav, 30) + 5); }
+.ds-mais__scrim { position: absolute; inset: 0; background: rgba(10, 10, 10, .4); }
+.ds-mais__sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  max-height: min(72dvh, 560px);
+  overflow: auto;
+  border-radius: var(--r-panel, 30px) var(--r-panel, 30px) 0 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+  display: grid; gap: 12px;
+  animation: ds-fade-up var(--dur-spatial, 360ms) var(--ease-out, ease) both;
+}
+.ds-mais__head { display: flex; justify-content: space-between; align-items: center; }
+.ds-mais__list { display: grid; gap: 4px; }
+.ds-mais__item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 12px; border-radius: var(--r-sm, 12px);
+  color: var(--fg); text-decoration: none; background: transparent; border: 0;
+  font: inherit; text-align: left; cursor: pointer; width: 100%;
+}
+.ds-mais__item-main { display: grid; gap: 2px; }
+.ds-mais__item:hover, .ds-mais__item[aria-current="page"] { background: var(--surface-alt); }
+
+/* Gate de login (fiel à produção) */
+.ds-gate--login { place-items: center; gap: 14px; background: var(--bg); }
+.ds-gate__eyebrow { text-align: center; }
+.ds-gate__card--login {
+  width: min(420px, 100%);
+  padding: 40px 36px;
+  border-radius: var(--r-card, 24px);
+  box-shadow: 0 2px 8px rgba(10, 10, 10, .06);
+}
+.ds-gate__title { margin: 0; font-size: clamp(26px, 4vw, 32px); letter-spacing: -0.03em; font-weight: 600; }
+.ds-gate__lead { margin: 0; color: var(--fg-2); font-size: var(--fs-body, 16px); line-height: 1.45; }
+.ds-gate__form { display: grid; gap: 16px; margin-top: 8px; }
+
 @media (max-width: 900px) {
   .ds-shell { grid-template-columns: 1fr; }
-  .ds-sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; align-items: center; }
-  .ds-sidebar__group { display: flex; flex-wrap: wrap; gap: 4px; }
-  .ds-sidebar__group-label { display: none; }
-  .ds-sidebar__foot { margin-top: 0; margin-left: auto; }
-  .ds-shell__main { padding: 16px 12px 120px; }
+  .ds-sidebar { display: none; }
+  .ds-mobile-nav { display: block; }
+  .ds-shell__main {
+    padding: 16px 12px calc(120px + env(safe-area-inset-bottom));
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+  .ds-fab { bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 40; }
 }
 
 .ds-pagehead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
