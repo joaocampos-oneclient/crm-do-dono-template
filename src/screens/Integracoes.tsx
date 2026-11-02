@@ -7,6 +7,113 @@ import { estadoExemplo, estadoVazio } from "@/data/exemplo";
 import { chaveAtiva, configMcp, exemplosCurl, promptGrokbot } from "@/domain/integracao";
 import { apagarEstadoLocal } from "@/repo/local";
 
+/** Chave Anthropic do membro — alimenta Mastra; sem ela, agentes usam regras. */
+function LlmKeyPanel() {
+  const toast = useToast();
+  const [apiKey, setApiKey] = React.useState("");
+  const [status, setStatus] = React.useState<{
+    configurada: boolean;
+    mascara: string | null;
+    model: string;
+    origem: string | null;
+  } | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  const carregar = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/agents/llm");
+      const json = await res.json();
+      setStatus({
+        configurada: Boolean(json.configurada),
+        mascara: json.mascara ?? null,
+        model: json.model ?? "claude-haiku-4-5",
+        origem: json.origem ?? null,
+      });
+    } catch {
+      setStatus(null);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void carregar();
+  }, [carregar]);
+
+  const salvar = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/agents/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        toast.push(json.erro ?? "Não salvou a chave.");
+        return;
+      }
+      setApiKey("");
+      toast.push("Chave Anthropic salva. Agentes passam a usar Mastra/LLM.");
+      await carregar();
+    } catch (e) {
+      toast.push(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const limpar = async () => {
+    setBusy(true);
+    try {
+      await fetch("/api/agents/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clear: true }),
+      });
+      toast.push("Chave removida. Agentes voltam às regras locais.");
+      await carregar();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card tone="alt" style={{ padding: 12, display: "grid", gap: 10 }}>
+      <strong>LLM dos agentes (Anthropic / Mastra)</strong>
+      <p className="ds-muted" style={{ margin: 0, fontSize: 13 }}>
+        Cole a chave da sua conta Anthropic (ou defina <code>ANTHROPIC_API_KEY</code> / <code>CRM_LLM_API_KEY</code> no{" "}
+        <code>.env.local</code>). Sem chave, Cláudio, Scout e os outros usam as regras locais — o CRM não quebra.
+      </p>
+      {status && (
+        <div className="ds-wrap" style={{ gap: 8 }}>
+          <Badge tone={status.configurada ? "solid" : "dashed"}>
+            {status.configurada ? `LLM ativo (${status.origem})` : "regras locais"}
+          </Badge>
+          {status.mascara && <code>{status.mascara}</code>}
+          <span className="ds-label">modelo {status.model}</span>
+        </div>
+      )}
+      <Input
+        label="Chave Anthropic"
+        type="password"
+        value={apiKey}
+        onChange={(e) => setApiKey(e.target.value)}
+        placeholder="sk-ant-…"
+        help="Só no seu servidor. Não vai para o navegador de outros operadores."
+      />
+      <div className="ds-wrap">
+        <Button onClick={salvar} disabled={busy || apiKey.trim().length < 20}>
+          {busy ? "Salvando…" : "Salvar chave"}
+        </Button>
+        {status?.configurada && status.origem === "ui" && (
+          <Button variant="ghost" onClick={limpar} disabled={busy}>
+            Remover
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 /**
  * Integrações: como ligar canais de entrada (webhook), o Grokbot (MCP + prompt) e outros sistemas (API).
  * Também: exportar/importar o estado e começar do zero.
@@ -66,6 +173,7 @@ export function Integracoes() {
         ) },
         { id: "grok", label: "Grokbot / agentes", panel: (
           <div style={{ display: "grid", gap: 14 }}>
+            <LlmKeyPanel />
             <Card tone="alt" style={{ padding: 12 }}>
               <strong>Três níveis de acesso para um agente</strong>
               <ol style={{ margin: "6px 0 0", paddingLeft: 18 }}>

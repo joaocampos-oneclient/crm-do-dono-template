@@ -5,9 +5,12 @@
 import { z } from "zod";
 import { ETAPAS } from "@/domain/funil";
 import { mencionaPreco, categoria, acaoDaNota } from "@/domain/rules";
+import { relatorio } from "@/domain/metricas";
+import type { EstadoCRM } from "@/domain/types";
 import { crmConfig } from "@crm/config";
 import { executarAgente } from "@/lib/agents";
 import { AgenteSlug } from "@/lib/agents/types";
+import { temLlmKey } from "@/lib/agents/llm-store";
 import type { CrmMcpNivel } from "./niveis";
 import { nivelPodeAdmin, nivelPodeEscrever } from "./niveis";
 
@@ -336,6 +339,338 @@ export const MCP_TOOLS: McpTool[] = [
         criterio: a.criterio,
         mudanca: "Em src/screens/FunilKanban.tsx, cards com ocorrência aberta do tipo problema ganham classe ds-farol-vermelho (borda tinta, negrito).",
         arquivos: ["src/screens/FunilKanban.tsx", "src/design-system-2027/tokens/crm.css"],
+      });
+    },
+  },
+
+  // --- Dia a dia do dono ---
+  {
+    name: "crm_hoje",
+    description: "Resumo da fila de Hoje: handoffs, tarefas vencidas, leads novos e o que fazer agora.",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({}),
+    async handler(_args, ctx) {
+      const estado = ctx.estado as EstadoCRM;
+      const agora = new Date().toISOString();
+      const handoffs = (estado.contatos ?? []).filter((c) => c.handoffPendente);
+      const tarefasVencidas = (estado.tarefas ?? []).filter(
+        (t) => !t.feita && t.venceEm && Date.parse(t.venceEm) < Date.parse(agora),
+      );
+      const leadsNovos = (estado.oportunidades ?? []).filter((o) => !o.perdida && o.etapa === "novo");
+      const ocorrencias = (estado.ocorrencias ?? []).filter((o) => o.status !== "resolvida");
+      return ok({
+        agora,
+        handoffs: handoffs.map((c) => ({ id: c.id, nome: c.nome, desde: c.handoffDesde })),
+        tarefasVencidas: tarefasVencidas.map((t) => ({
+          id: t.id,
+          contatoId: t.contatoId,
+          texto: t.texto,
+          venceEm: t.venceEm,
+        })),
+        leadsNovos: leadsNovos.length,
+        ocorrenciasAbertas: ocorrencias.length,
+        llm: temLlmKey() ? "anthropic" : "regras locais",
+        proximoPasso:
+          handoffs.length > 0
+            ? `Assumir ${handoffs[0].nome} (handoff pendente).`
+            : tarefasVencidas.length > 0
+              ? `Concluir ou reagendar: ${tarefasVencidas[0].texto}`
+              : leadsNovos.length > 0
+                ? "Abrir leads novos no funil e iniciar conversa."
+                : "Fila limpa — olhar placar e follow-ups.",
+      });
+    },
+  },
+  {
+    name: "crm_handoffs_listar",
+    description: "Lista contatos com handoff pendente (pediu humano / preço / nota alta).",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({}),
+    async handler(_args, ctx) {
+      const estado = ctx.estado as EstadoCRM;
+      const lista = (estado.contatos ?? [])
+        .filter((c) => c.handoffPendente)
+        .map((c) => ({
+          id: c.id,
+          nome: c.nome,
+          empresa: c.empresa,
+          telefone: mascararTelefone(c.telefone),
+          nota: c.nota,
+          desde: c.handoffDesde,
+          dono: c.dono,
+        }));
+      return ok({ total: lista.length, handoffs: lista });
+    },
+  },
+  {
+    name: "crm_tarefas_listar",
+    description: "Lista tarefas abertas (opcional: só vencidas).",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({
+      soVencidas: z.boolean().default(false),
+      limite: z.number().int().min(1).max(100).default(30),
+    }),
+    async handler(args, ctx) {
+      const a = z.object({ soVencidas: z.boolean().default(false), limite: z.number().default(30) }).parse(args);
+      const estado = ctx.estado as EstadoCRM;
+      const agora = Date.now();
+      const lista = (estado.tarefas ?? [])
+        .filter((t) => !t.feita)
+        .filter((t) => !a.soVencidas || (t.venceEm && Date.parse(t.venceEm) < agora))
+        .slice(0, a.limite)
+        .map((t) => {
+          const c = estado.contatos.find((x) => x.id === t.contatoId);
+          return {
+            id: t.id,
+            contatoId: t.contatoId,
+            contato: c?.nome ?? t.contatoId,
+            texto: t.texto,
+            venceEm: t.venceEm,
+            origem: t.origem,
+            vencida: Boolean(t.venceEm && Date.parse(t.venceEm) < agora),
+          };
+        });
+      return ok({ total: lista.length, tarefas: lista });
+    },
+  },
+  {
+    name: "crm_tarefas_concluir",
+    description: "Marca uma tarefa como feita.",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({ id: z.string(), feita: z.boolean().default(true) }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z.object({ id: z.string(), feita: z.boolean().default(true) }).parse(args);
+      const estado = ctx.estado as EstadoCRM;
+      const t = estado.tarefas?.find((x) => x.id === a.id);
+      if (!t) return err("Tarefa não encontrada.");
+      ctx.audit("crm_tarefas_concluir", a);
+      return ok({ status: "ok", id: a.id, feita: a.feita, texto: t.texto });
+    },
+  },
+  {
+    name: "crm_contato_criar",
+    description: "Cria lead/contato (telefone único). No demo, instrui o despacho da UI.",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({
+      nome: z.string().min(1),
+      telefone: z.string().min(8),
+      empresa: z.string().optional(),
+      origem: z.string().optional(),
+    }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z
+        .object({
+          nome: z.string(),
+          telefone: z.string(),
+          empresa: z.string().optional(),
+          origem: z.string().optional(),
+        })
+        .parse(args);
+      ctx.audit("crm_contato_criar", { ...a, telefone: mascararTelefone(a.telefone) });
+      return ok({
+        status: "ok",
+        ...a,
+        telefone: mascararTelefone(a.telefone),
+        aviso: "Com Supabase grava crm_contatos + oportunidade em 'novo'. No demo use a tela Contatos ou POST /api/leads.",
+      });
+    },
+  },
+  {
+    name: "crm_contato_ver",
+    description: "Visão completa de um contato (oportunidades, últimas mensagens, tarefas).",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({ id: z.string() }),
+    async handler(args, ctx) {
+      const { id } = z.object({ id: z.string() }).parse(args);
+      const estado = ctx.estado as EstadoCRM;
+      const c = estado.contatos.find((x) => x.id === id);
+      if (!c) return err("Contato não encontrado.");
+      const ops = estado.oportunidades.filter((o) => o.contatoId === id);
+      const msgs = estado.mensagens.filter((m) => m.contatoId === id).slice(-10);
+      const tarefas = estado.tarefas.filter((t) => t.contatoId === id && !t.feita);
+      return ok({
+        id: c.id,
+        nome: c.nome,
+        empresa: c.empresa,
+        telefone: mascararTelefone(c.telefone),
+        nota: c.nota,
+        dono: c.dono,
+        handoffPendente: c.handoffPendente,
+        categoria: categoria(ops as never),
+        oportunidades: ops.map((o) => ({ id: o.id, etapa: o.etapa, valor: o.valor, perdida: o.perdida })),
+        ultimasMensagens: msgs.map((m) => ({ autor: m.autor, texto: m.texto.slice(0, 120), em: m.em })),
+        tarefasAbertas: tarefas.map((t) => ({ id: t.id, texto: t.texto, venceEm: t.venceEm })),
+      });
+    },
+  },
+  {
+    name: "crm_mensagens_listar",
+    description: "Últimas mensagens de um contato (telefone mascarado no contexto).",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({ contatoId: z.string(), limite: z.number().int().min(1).max(50).default(20) }),
+    async handler(args, ctx) {
+      const a = z.object({ contatoId: z.string(), limite: z.number().default(20) }).parse(args);
+      const estado = ctx.estado as EstadoCRM;
+      const msgs = estado.mensagens
+        .filter((m) => m.contatoId === a.contatoId)
+        .sort((x, y) => Date.parse(x.em) - Date.parse(y.em))
+        .slice(-a.limite)
+        .map((m) => ({ id: m.id, autor: m.autor, texto: m.texto, em: m.em, aviso: m.aviso }));
+      return ok({ contatoId: a.contatoId, total: msgs.length, mensagens: msgs });
+    },
+  },
+  {
+    name: "crm_mensagem_enviar",
+    description: "Envia mensagem WhatsApp a um contato (usa WPP Engine se configurado).",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({
+      contatoId: z.string(),
+      texto: z.string().min(1),
+      comoRobo: z.boolean().default(false),
+    }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z
+        .object({ contatoId: z.string(), texto: z.string(), comoRobo: z.boolean().default(false) })
+        .parse(args);
+      if (a.comoRobo && mencionaPreco(a.texto)) return err("Cláudio nunca fala preço.");
+      const estado = ctx.estado as EstadoCRM;
+      const c = estado.contatos.find((x) => x.id === a.contatoId);
+      if (!c) return err("Contato não encontrado.");
+      ctx.audit("crm_mensagem_enviar", { contatoId: a.contatoId, chars: a.texto.length, comoRobo: a.comoRobo });
+      try {
+        const { getWhatsAppProvider, resolveProviderId, newIdempotencyKey } = await import("@/lib/whatsapp");
+        const { effectiveApiKey, effectiveSessionId } = await import("@/lib/whatsapp/store");
+        const sessionId = effectiveSessionId();
+        if (!effectiveApiKey() || !sessionId) {
+          return ok({
+            status: "simulado",
+            contatoId: a.contatoId,
+            para: mascararTelefone(c.telefone),
+            texto: a.texto,
+            aviso: "Sem WPP_API_KEY/sessão — mensagem não saiu; configure em Integrações › WhatsApp.",
+          });
+        }
+        const provider = getWhatsAppProvider();
+        const r = await provider.sendText({
+          sessionId,
+          to: c.telefone,
+          text: a.texto,
+          idempotencyKey: newIdempotencyKey(),
+        });
+        if (!r.ok) return err(r.erro);
+        return ok({
+          status: "enviado",
+          provider: resolveProviderId(),
+          contatoId: a.contatoId,
+          messageId: r.id,
+        });
+      } catch (e) {
+        return err(e instanceof Error ? e.message : String(e));
+      }
+    },
+  },
+  {
+    name: "crm_placar",
+    description: "Placar do dono: vendas hoje/mês, receita, tarefas vencidas, ocorrências.",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({}),
+    async handler(_args, ctx) {
+      const estado = ctx.estado as EstadoCRM;
+      const agora = new Date().toISOString();
+      return ok(relatorio(estado, agora));
+    },
+  },
+  {
+    name: "crm_leads_esfriando",
+    description: "Leads em conversa/handoff sem movimento recente (risco de esfriar).",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({ horas: z.number().default(48), limite: z.number().default(20) }),
+    async handler(args, ctx) {
+      const a = z.object({ horas: z.number().default(48), limite: z.number().default(20) }).parse(args);
+      const estado = ctx.estado as EstadoCRM;
+      const corte = Date.now() - a.horas * 3600_000;
+      const etapasRisco = new Set(["novo", "conversa", "handoff", "briefing", "proposta", "oferta"]);
+      const frios = estado.oportunidades
+        .filter((o) => !o.perdida && etapasRisco.has(o.etapa))
+        .filter((o) => Date.parse(o.entrouNaEtapaEm) < corte)
+        .slice(0, a.limite)
+        .map((o) => {
+          const c = estado.contatos.find((x) => x.id === o.contatoId);
+          return {
+            oportunidadeId: o.id,
+            etapa: o.etapa,
+            horasParado: Math.round((Date.now() - Date.parse(o.entrouNaEtapaEm)) / 3600_000),
+            contato: c ? { id: c.id, nome: c.nome, telefone: mascararTelefone(c.telefone) } : null,
+          };
+        });
+      return ok({ criterioHoras: a.horas, total: frios.length, leads: frios });
+    },
+  },
+  {
+    name: "crm_ocorrencias_listar",
+    description: "Lista ocorrências do Cláudio (problema/melhoria).",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({
+      status: z.enum(["aberta", "resolvida", "todas"]).default("aberta"),
+      limite: z.number().default(20),
+    }),
+    async handler(args, ctx) {
+      const a = z
+        .object({ status: z.enum(["aberta", "resolvida", "todas"]).default("aberta"), limite: z.number().default(20) })
+        .parse(args);
+      const estado = ctx.estado as EstadoCRM;
+      const lista = (estado.ocorrencias ?? [])
+        .filter((o) => a.status === "todas" || (a.status === "resolvida" ? o.status === "resolvida" : o.status !== "resolvida"))
+        .slice(0, a.limite)
+        .map((o) => ({
+          id: o.id,
+          contatoId: o.contatoId,
+          tipo: o.tipo,
+          descricao: o.descricao,
+          status: o.status,
+          em: o.em,
+        }));
+      return ok({ total: lista.length, ocorrencias: lista });
+    },
+  },
+  {
+    name: "crm_whatsapp_status",
+    description: "Status da conexão WhatsApp (WPP Engine / WAHA) e se LLM está configurado.",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({}),
+    async handler() {
+      try {
+        const { resolveProviderId } = await import("@/lib/whatsapp");
+        const { effectiveApiKey, effectiveSessionId, loadConnection } = await import("@/lib/whatsapp/store");
+        const conn = loadConnection();
+        return ok({
+          provider: resolveProviderId(),
+          conectado: Boolean(effectiveApiKey()),
+          sessionId: effectiveSessionId(),
+          phone: conn?.phone ?? null,
+          llm: temLlmKey() ? "configurado" : "regras locais",
+        });
+      } catch (e) {
+        return err(e instanceof Error ? e.message : String(e));
+      }
+    },
+  },
+  {
+    name: "crm_llm_status",
+    description: "Se a chave Anthropic do membro está configurada (agentes Mastra vs regras).",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({}),
+    async handler() {
+      const { mascaraChave, effectiveLlmApiKey, effectiveLlmModel } = await import("@/lib/agents/llm-store");
+      const key = effectiveLlmApiKey();
+      return ok({
+        configurada: Boolean(key),
+        mascara: mascaraChave(key),
+        model: effectiveLlmModel(),
+        modo: key ? "mastra+anthropic" : "regras locais",
       });
     },
   },

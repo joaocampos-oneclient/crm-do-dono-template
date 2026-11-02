@@ -15,6 +15,14 @@ export function Agentes() {
   );
   const [saidas, setSaidas] = React.useState<Record<string, Resultado | string>>({});
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [llm, setLlm] = React.useState<{ configurada: boolean; mascara: string | null } | null>(null);
+
+  React.useEffect(() => {
+    void fetch("/api/agents/llm")
+      .then((r) => r.json())
+      .then((j) => setLlm({ configurada: Boolean(j.configurada), mascara: j.mascara ?? null }))
+      .catch(() => setLlm(null));
+  }, []);
 
   const rodar = async (slug: string) => {
     setBusy(slug);
@@ -49,7 +57,12 @@ export function Agentes() {
     <>
       <PageHead eyebrow="Equipe" title="Agentes">
         <p className="ds-muted" style={{ margin: "4px 0 0" }}>
-          Seis agentes. Três modos: sugerir, perguntar, automático. Ledger nunca fica automático e nunca cobra. Cláudio nunca fala preço.
+          Seis agentes. Três modos: sugerir, perguntar, automático. Ledger nunca fica automático e nunca cobra. Cláudio nunca fala preço.{" "}
+          {llm?.configurada ? (
+            <>LLM Anthropic ativo{llm.mascara ? <> (<code>{llm.mascara}</code>)</> : null} via Mastra.</>
+          ) : (
+            <>Sem chave: regras locais. Configure em <a href="#/integracoes">Integrações</a>.</>
+          )}
         </p>
       </PageHead>
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>

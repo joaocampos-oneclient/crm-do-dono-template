@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { verifyWppEngineSignature } from "@/lib/whatsapp";
 import { effectiveWebhookSecret } from "@/lib/whatsapp/store";
+import {
+  ingestWhatsAppMessage,
+  type MessageEventType,
+} from "@/lib/whatsapp/ingest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,6 +13,14 @@ export const runtime = "nodejs";
 /** Dedupe em memória (processo). Em multi-instância, use Redis/Supabase. */
 const seen = new Map<string, number>();
 const SEEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+const MESSAGE_TYPES = new Set<MessageEventType>([
+  "message.received",
+  "message.sent",
+  "message.delivered",
+  "message.read",
+  "message.failed",
+]);
 
 function remember(eventId: string): boolean {
   const now = Date.now();
@@ -47,6 +59,7 @@ export async function POST(req: NextRequest) {
   let payload: {
     id?: string;
     type?: string;
+    timestamp?: string;
     session_id?: string;
     data?: unknown;
   } = {};
@@ -56,16 +69,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  // Responde 2xx rápido; processamento pesado deve ir pra fila depois.
-  console.info(
-    "[wpp-engine webhook]",
-    payload.type,
-    payload.session_id,
-    eventId,
-    JSON.stringify(payload.data)?.slice(0, 200),
-  );
+  const type = payload.type ?? "";
+  let ingest: Awaited<ReturnType<typeof ingestWhatsAppMessage>> | null = null;
 
-  // TODO: gravar message.received em crm_mensagens; session.* atualiza crm_whatsapp_sessoes
+  if (MESSAGE_TYPES.has(type as MessageEventType)) {
+    try {
+      ingest = await ingestWhatsAppMessage({
+        type: type as MessageEventType,
+        eventId: payload.id ?? eventId,
+        sessionId: payload.session_id,
+        data: payload.data,
+        timestamp: payload.timestamp,
+      });
+    } catch (e) {
+      console.error("[wpp-engine webhook] ingest falhou", e);
+      // Ainda responde 2xx para o Engine não retentar em loop agressivo;
+      // o erro fica no log para o dono/ops.
+      return NextResponse.json({
+        ok: true,
+        ingest: { ok: false, erro: e instanceof Error ? e.message : String(e) },
+      });
+    }
+  } else {
+    console.info("[wpp-engine webhook]", type, payload.session_id, eventId);
+  }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ingest: ingest ?? undefined });
 }

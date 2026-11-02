@@ -23,7 +23,7 @@ Cada afirmação da live e onde está no repo. Critério de “tudo que falei é
 | 17 | Ocorrências do Cláudio | tela Ocorrências + MCP | Registrar ocorrência | verdade |
 | 18 | Vários usuários / supervisão | `crm_operadores`, papéis | Entrada com operadores | verdade |
 | 19 | MCP com níveis | `src/lib/mcp/niveis.ts`, tokens demo | GET `/api/mcp/crm` com Bearer | verdade |
-| 20 | Framework Mastra / LLM Anthropic plugável | deps `@mastra/core`, `ANTHROPIC_API_KEY` | Sem chave: regras locais | verdade |
+| 20 | Framework Mastra / LLM Anthropic plugável | `src/lib/agents/llm.ts`, `ANTHROPIC_API_KEY` / UI Integrações | Sem chave: regras locais; com chave: Mastra | verdade |
 | 21 | Jev para decisão rápida | `src/lib/agents/decision-engine.ts` | Sem token: fallback local | verdade (fallback) |
 | 22 | Disparo de e-mail em massa | docs | — | em breve |
 | 23 | Agente de cobrança | docs | — | em breve |

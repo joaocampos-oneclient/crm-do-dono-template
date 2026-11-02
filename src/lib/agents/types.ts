@@ -25,4 +25,6 @@ export type ResultadoAgente = {
   saida: ExecucaoSaida;
   custoTokens: number;
   usadoJev: boolean;
+  /** true quando Mastra/Anthropic gerou a saída (senão: regras locais). */
+  usadoLlm: boolean;
 };

@@ -51,10 +51,18 @@ async function main() {
     }
   }
 
+  const llmKey =
+    process.env.CRM_LLM_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    (existsSync(resolve("data/llm-connection.json")) ? "ui" : "");
   checks.push({
-    ok: Boolean(process.env.ANTHROPIC_API_KEY) || true,
-    nome: "Anthropic",
-    detalhe: process.env.ANTHROPIC_API_KEY ? "chave presente" : "ausente (agentes usam regras locais)",
+    ok: true,
+    nome: "Anthropic / Mastra",
+    detalhe: llmKey
+      ? llmKey === "ui"
+        ? "chave via UI (data/llm-connection.json)"
+        : "chave presente no env"
+      : "ausente (agentes usam regras locais)",
   });
 
   const wpp = process.env.WPP_API_KEY;
