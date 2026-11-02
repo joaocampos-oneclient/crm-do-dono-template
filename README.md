@@ -33,7 +33,7 @@ npm run db:push   # gera supabase/all.sql para colar no SQL Editor
 | Telas (Hoje, Funil, Conversas, Contatos, Demanda, Relatórios, Agentes…) | Pronto |
 | 6 agentes (Cláudio, Scout, Scribe, Ledger, Pilot, Eco) | Pronto (regras + DecisionEngine; LLM opcional) |
 | MCP Cursor / GrokBot (~20 ferramentas) | Pronto em `/api/mcp/crm` |
-| WhatsApp via WAHA (QR) | Pronto (`docker compose up`) |
+| WhatsApp via WPP Engine (QR) | Pronto (padrão); WAHA opcional |
 | Schema SQL + RLS + agentes | Pronto em `supabase/migrations/` |
 | E-mail em massa / cobrança / coach | Em breve (ver `docs/LIVE-CHECKLIST.md`) |
 

@@ -2,6 +2,7 @@
 import * as React from "react";
 import { Badge, Button, Card, Input, PageHead, Section, Tabs, useToast } from "@/ds";
 import { useCRM } from "@/components/crm/provider";
+import { WhatsAppOnboarding } from "@/components/crm/WhatsAppOnboarding";
 import { estadoExemplo, estadoVazio } from "@/data/exemplo";
 import { chaveAtiva, configMcp, exemplosCurl, promptGrokbot } from "@/domain/integracao";
 import { apagarEstadoLocal } from "@/repo/local";
@@ -55,6 +56,14 @@ export function Integracoes() {
       </div>
 
       <Tabs label="Integrações" items={[
+        { id: "whatsapp", label: "WhatsApp", panel: (
+          <div style={{ display: "grid", gap: 14 }}>
+            <WhatsAppOnboarding />
+            <p className="ds-muted" style={{ margin: 0, fontSize: 13 }}>
+              Contrato e limites: <code>docs/wpp-engine-contrato.md</code>. WAHA só como alternativa (<code>WHATSAPP_PROVIDER=waha</code> + <code>docker-compose.waha.yml</code>).
+            </p>
+          </div>
+        ) },
         { id: "grok", label: "Grokbot / agentes", panel: (
           <div style={{ display: "grid", gap: 14 }}>
             <Card tone="alt" style={{ padding: 12 }}>

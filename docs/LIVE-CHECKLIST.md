@@ -18,7 +18,7 @@ Cada afirmação da live e onde está no repo. Critério de “tudo que falei é
 | 12 | Conta gratuita Supabase + Vercel | `IMPLEMENTAR.md` | Seguir guia | verdade |
 | 13 | Clone no GitHub e instalar | este repo público | `git clone` + `npm i` + `npm run dev` | verdade |
 | 14 | Guia de implementação arrastável | `IMPLEMENTAR.md` | Arrastar no Cursor | verdade |
-| 15 | WhatsApp por QR | `docker-compose.yml`, `src/lib/whatsapp/waha.ts`, `/api/whatsapp` | `docker compose up` + POST start | verdade (demo sem WAHA) |
+| 15 | WhatsApp por QR | WPP Engine padrão (`src/lib/whatsapp/wpp-engine.ts`, onboarding, `/api/whatsapp`); WAHA opcional (`docker-compose.waha.yml`) | Integrações › WhatsApp: colar key + telefone → QR | verdade (precisa key real do Engine para conectar de verdade) |
 | 16 | Assumir / devolver com aviso | domínio comandos + MCP `crm_conversa_assumir` | Tela Conversas | verdade |
 | 17 | Ocorrências do Cláudio | tela Ocorrências + MCP | Registrar ocorrência | verdade |
 | 18 | Vários usuários / supervisão | `crm_operadores`, papéis | Entrada com operadores | verdade |

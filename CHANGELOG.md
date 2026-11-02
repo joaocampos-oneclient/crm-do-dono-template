@@ -7,7 +7,7 @@
 - `crm.config.ts` genérico (empresa, produtos, 3 funis, agentes).
 - Seis agentes executáveis (Cláudio, Scout, Scribe, Ledger, Pilot, Eco) com DecisionEngine (Jev opcional).
 - MCP-first: `/api/mcp/crm` + stdio, níveis leitura/escrita/admin, ferramenta `crm_farol_funil`.
-- WhatsApp via WAHA (`docker-compose.yml`, `/api/whatsapp`).
+- WhatsApp via **WPP Engine** (provedor padrão, onboarding com key uma vez + QR + webhook automático). WAHA opcional (`docker-compose.waha.yml`).
 - Migrations consolidadas (casa + agentes + seed).
 - `IMPLEMENTAR.md`, `npm run setup`, `npm run doctor`, `AGENTS.md`, `docs/LIVE-CHECKLIST.md`.
 - Tag histórica do template Vite: `v0.1-vite`.

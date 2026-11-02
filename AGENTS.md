@@ -18,7 +18,7 @@ Você está editando o CRM do dono (IA para Donos). O usuário é empreendedor, 
 | Telas | `src/screens/` |
 | Agentes (Cláudio, Scout, Scribe, Ledger, Pilot, Eco) | `src/lib/agents/` |
 | MCP (Cursor / GrokBot) | `src/lib/mcp/` + `src/app/api/mcp/crm/` |
-| WhatsApp (WAHA) | `src/lib/whatsapp/` + `docker-compose.yml` |
+| WhatsApp (WPP Engine padrão) | `src/lib/whatsapp/` · contrato `docs/wpp-engine-contrato.md` · WAHA opcional `docker-compose.waha.yml` |
 | Migrations | `supabase/migrations/` |
 | Design system | `src/design-system-2027/` |
 
@@ -46,4 +46,4 @@ Caso clássico da live: “na tela de funil, ponha farol vermelho nas oportunida
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · Supabase · Mastra-ready · MCP SDK · WAHA · Vitest · Vercel.
+Next.js 15 (App Router) · React 19 · Supabase · Mastra-ready · MCP SDK · WPP Engine · Vitest · Vercel.

@@ -20,6 +20,7 @@ import { Agentes } from "./Agentes";
 import { ModalLigacao } from "./modais/Ligacao";
 import { ModalDiscagem } from "./modais/Discagem";
 import { iniciais } from "./partes";
+import { WhatsAppOnboarding } from "@/components/crm/WhatsAppOnboarding";
 
 /** Raiz: carrega o estado do repositório, pede o operador e monta o shell. */
 export function App({ repo }: { repo: RepositorioCRM }) {
@@ -53,7 +54,7 @@ function Entrada() {
   const { estado, entrar } = useCRM();
   const humanos = estado.operadores.filter((o) => o.tipo === "humano" && o.ativo);
   return (
-    <div className="ds-gate">
+    <div className="ds-gate" style={{ display: "grid", gap: 16, justifyItems: "center", padding: 24 }}>
       <Card className="ds-gate__card">
         <div className="ds-label">{estado.config.nomeEmpresa} · CRM do dono</div>
         <h1 style={{ margin: 0, fontSize: 26, letterSpacing: "-0.02em" }}>Quem está entrando?</h1>
@@ -69,6 +70,9 @@ function Entrada() {
         </div>
         <p className="ds-muted" style={{ margin: 0, fontSize: 13 }}>Dados de exemplo. Para zerar e começar do seu jeito: Integrações → "Começar do zero".</p>
       </Card>
+      <div style={{ width: "min(560px, 100%)" }}>
+        <WhatsAppOnboarding compact />
+      </div>
     </div>
   );
 }

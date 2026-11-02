@@ -57,10 +57,17 @@ async function main() {
     detalhe: process.env.ANTHROPIC_API_KEY ? "chave presente" : "ausente (agentes usam regras locais)",
   });
 
+  const wpp = process.env.WPP_API_KEY;
+  const provider = (process.env.WHATSAPP_PROVIDER ?? "wpp-engine").toLowerCase();
   checks.push({
-    ok: Boolean(process.env.WAHA_URL) || true,
-    nome: "WAHA / WhatsApp",
-    detalhe: process.env.WAHA_URL ? process.env.WAHA_URL : "ausente (QR demo)",
+    ok: true,
+    nome: "WhatsApp",
+    detalhe:
+      provider === "waha"
+        ? `provedor waha · ${process.env.WAHA_URL ?? "sem WAHA_URL"}`
+        : wpp
+          ? `WPP Engine · key ${wpp.slice(0, 12)}…`
+          : "WPP Engine sem key (cole em Integrações ou WPP_API_KEY)",
   });
 
   checks.push({

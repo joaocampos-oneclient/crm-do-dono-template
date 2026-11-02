@@ -10,7 +10,7 @@ Você só cria contas e cola chaves. O resto é automático.
 2. [Supabase](https://supabase.com) — projeto novo (região perto de você)
 3. [Vercel](https://vercel.com) — importe o repositório
 4. (Opcional) [Anthropic](https://console.anthropic.com) — chave para os agentes
-5. (Opcional) WhatsApp: `docker compose up -d` ou template WAHA no Railway/Render
+5. (Opcional) WhatsApp: conta no [WPP Engine](https://wpp-engine.oneclient.com.br) (padrão). WAHA só se você quiser o adaptador alternativo.
 
 ## 2. Local (2 minutos)
 
@@ -40,7 +40,8 @@ No SQL Editor do Supabase, rode na ordem:
 
 1. `supabase/migrations/20261102000000_crm_casa.sql`
 2. `supabase/migrations/20261102000002_crm_agentes.sql`
-3. `supabase/migrations/20261102000001_crm_seed_demo.sql` (opcional)
+3. `supabase/migrations/20261102000003_crm_whatsapp_wpp_engine.sql`
+4. `supabase/migrations/20261102000001_crm_seed_demo.sql` (opcional)
 
 Ou: `npm run db:push` e cole `supabase/all.sql`.
 
@@ -85,15 +86,41 @@ Local sem deploy:
 
 Teste: “liste as ferramentas do CRM” e “resumo do funil”.
 
-## 6. WhatsApp (opcional)
+## 6. WhatsApp (WPP Engine — padrão)
 
-```bash
-docker compose up -d
-# .env.local
-WAHA_URL=http://localhost:3001
+1. Na home do CRM ou em **Integrações › WhatsApp**, clique **Criar conta no WPP Engine** (abre o console: signup + checkout → key `wae_live_…`).
+2. Cole a key **uma vez** e o telefone em E.164 (`+5511…`).
+3. Clique **Integrar meu WhatsApp**. O CRM sozinho:
+   - valida a key (`GET /v1/tenants/me`)
+   - cria a sessão (`POST /v1/sessions`)
+   - mostra o QR (refresh automático)
+   - gera `webhook_secret` e registra (`PATCH /v1/tenants/me`)
+4. Escaneie o QR no celular.
+
+Env opcional (se preferir não colar na UI):
+
+```
+WPP_API_BASE_URL=https://wpp-engine.oneclient.com.br/v1
+WPP_API_KEY=wae_live_…
+WPP_SESSION_ID=
+WPP_WEBHOOK_SECRET=
+WPP_CONSOLE_URL=https://wpp-engine.oneclient.com.br
 ```
 
-Em Integrações / API `POST /api/whatsapp` com `{ "action": "start" }` — escaneie o QR.
+Contrato completo: `docs/wpp-engine-contrato.md`.  
+**Não use** o legado `wpp-api.oneclient.tech`.
+
+### Alternativa WAHA (não recomendada)
+
+```bash
+WHATSAPP_PROVIDER=waha
+WAHA_URL=http://localhost:3001
+docker compose -f docker-compose.waha.yml up -d
+```
+
+### Futuro (sem colar token)
+
+OAuth / device-link: interface `startConnect` / `completeConnect` já existe; o Engine ainda não expõe. Quando existir, a UI troca o campo de key pelo redirect automático.
 
 ## 7. Se travar
 
