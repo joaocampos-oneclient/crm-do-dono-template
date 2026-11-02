@@ -1,6 +1,9 @@
 @import "../design-system-2027/tokens/tokens.css";
 @import "../design-system-2027/tokens/ds2027.css";
 @import "../design-system-2027/tokens/crm.css";
+@import "../crm-v3/crm-v3.css";
+@import "../crm-v3/crm-v3-extras.css";
+@import "../crm-v3/app.css";
 
 :root {
   --font-geist-sans: "Geist Variable", Geist, system-ui, sans-serif;
