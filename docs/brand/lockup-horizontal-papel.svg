@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="96" viewBox="0 0 420 96" fill="none">
+  
+  <rect width="420" height="96" fill="#F4F4F3"></rect>
+  <g transform="translate(14,10) scale(0.633)">
+    <path d="M60 20 L25.4 40 L25.4 80 L60 100 L94.6 80 L94.6 40 Z" stroke="#0A0A0A" stroke-width="2.5" stroke-linejoin="round" opacity="0.25"></path>
+    <path d="M60 60 L60 100 M60 60 L25.4 40 M60 60 L94.6 40" stroke="#0A0A0A" stroke-width="6" stroke-linecap="round"></path>
+    <circle cx="60" cy="100" r="6.5" fill="#0A0A0A"></circle><circle cx="25.4" cy="40" r="6.5" fill="#0A0A0A"></circle><circle cx="94.6" cy="40" r="6.5" fill="#0A0A0A"></circle>
+    <circle cx="60" cy="60" r="9" fill="#1E6B4B"></circle>
+  </g>
+  <text x="104" y="57" font-size="30" font-weight="600" letter-spacing="-0.6" fill="#0A0A0A">IA</text>
+  <text x="146" y="57" font-size="20" class="mono" fill="#6B6B6B">para</text>
+  <text x="202" y="57" font-size="30" font-weight="300" letter-spacing="-0.3" fill="#0A0A0A">Donos</text>
+  <text x="104" y="78" font-size="10" class="mono" font-weight="500" letter-spacing="1.6" fill="#6B6B6B">POR JOÃO AUGUSTO</text>
+</svg>

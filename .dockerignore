@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+local-crm-screenshots
+test-results
+coverage
+*.log
+.env.local
+.env*.local

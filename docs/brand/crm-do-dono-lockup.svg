@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 64" role="img" aria-label="CRM do dono · Oficina IPD">
+  <rect width="64" height="64" rx="14" fill="#0A0A0A"/>
+  <text x="32" y="40" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="700" fill="#F4F4F3">CRM</text>
+  <text x="80" y="28" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="650" fill="#0A0A0A">CRM do dono</text>
+  <text x="80" y="50" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="500" fill="#6B6B6B">Oficina IPD · comunidade IA para Donos</text>
+</svg>

@@ -1,0 +1,17 @@
+# CRM do dono — sobe o app em modo demo (dados de exemplo no navegador).
+# WhatsApp: o caminho recomendado é o WPP Engine (sem Docker).
+# WAHA (opcional): docker compose -f docker-compose.waha.yml up -d
+services:
+  crm:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+    # Descomente se quiser persistir o .env.local da máquina:
+    # env_file:
+    #   - .env.local
+    volumes:
+      # hot reload em desenvolvimento
+      - .:/app
+      - /app/node_modules

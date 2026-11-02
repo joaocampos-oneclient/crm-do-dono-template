@@ -15,13 +15,15 @@ Você só cria contas e cola chaves. O resto é automático.
 ## 2. Local (2 minutos)
 
 ```bash
-git clone <url-deste-repo>
+git clone https://github.com/oficina-ipd/crm-do-dono-template.git
 cd crm-do-dono-template
 npm install
 cp .env.example .env.local
 npm run doctor
 npm run dev
 ```
+
+Alternativa com Docker (modo demo): `docker compose up --build` → http://localhost:3000.
 
 Abra http://localhost:3000 — modo demo, sem banco. Escolha um operador e use.
 
