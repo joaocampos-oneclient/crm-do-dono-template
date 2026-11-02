@@ -1,6 +1,16 @@
 node_modules
+.next
 dist
+out
 .env
 .env.*
 !.env.example
 .DS_Store
+coverage
+test-results
+playwright-report
+data/
+*.log
+tsconfig.tsbuildinfo
+.next/
+.vercel

@@ -1,0 +1,16 @@
+---
+description: Regras do CRM do dono
+globs:
+  - src/**/*
+  - crm.config.ts
+  - supabase/**/*
+---
+
+Leia AGENTS.md antes de editar.
+
+- Nunca remova a trava de preço do Cláudio (`mencionaPreco` / `podeRoboEnviar`).
+- Ledger nunca em modo automático e nunca cobra.
+- Toda ação de UI nova ganha ferramenta em `src/lib/mcp/tools.ts`.
+- Migrations só aditivas.
+- Sem emoji, sem exclamação na UI.
+- Explique em português simples; um passo por vez.

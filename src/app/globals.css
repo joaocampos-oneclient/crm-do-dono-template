@@ -1,0 +1,30 @@
+@import "../design-system-2027/tokens/tokens.css";
+@import "../design-system-2027/tokens/ds2027.css";
+@import "../design-system-2027/tokens/crm.css";
+
+:root {
+  --font-geist-sans: "Geist Variable", Geist, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, monospace;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: var(--font-geist-sans);
+  background: var(--bg, #F4F4F3);
+  color: var(--fg, #0A0A0A);
+}
+
+* { box-sizing: border-box; }
+
+code, pre, .ds-mono, .ds-label, .ds-pre {
+  font-family: var(--font-geist-mono);
+}
+
+.ds-farol-vermelho {
+  outline: 2px solid var(--ink, #0A0A0A);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

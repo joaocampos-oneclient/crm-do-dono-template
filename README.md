@@ -1,89 +1,65 @@
-# CRM do dono · template educacional
+# CRM do dono · v3 instalável
 
-Template do encontro **Trabalhe Comigo #10 · Seu time comercial em uma tela** (IA para Donos).
+Template completo da comunidade **IA para Donos**. O que foi mostrado na live semanal: funil, agentes, WhatsApp por QR, MCP para Cursor e GrokBot.
 
-## O que isto é, e o que não é
+**Você só cria as contas (Vercel, Supabase, Anthropic) e cola as chaves.** O resto está neste repositório.
 
-| Parte | Estado |
-| --- | --- |
-| Telas navegáveis (Hoje, Funil, Contatos, Playbook, Números) | **Pronto** para você ver e mexer |
-| Regras de negócio (nota 0–10, prazo, categoria, trava do robô, conta reversa) | **Pronto**, com testes |
-| Schema SQL com RLS (`supabase/schema.sql`) | **Pronto** para rodar em projeto novo seu |
-| Dados | **Exemplo ilustrativo** (nomes, empresas e valores inventados) |
-| WhatsApp, pagamento, telefonia, transcrição, copiloto | **Simulados** (`src/adapters/mock.ts`). Nada sai do navegador |
-| Login, CRUD salvando no banco | **Não incluso**. É o seu próximo passo |
-
-Não é um produto pronto para produção. É um ponto de partida para você construir o seu, com o Cursor.
-
-## Rodar em 2 minutos
+## Rodar em 2 minutos (modo demo)
 
 ```bash
 npm install
-npm run dev        # abre em http://localhost:5173
-npm test           # 12 testes das regras
-npm run build
+npm run doctor
+npm run dev        # http://localhost:3000
+npm test
 ```
 
-Precisa de Node 20 ou mais novo.
+Sem `.env.local` o CRM usa dados de exemplo no navegador. Nada sai da sua máquina.
 
-## Como o CRM é pensado
+## Produção (Supabase + Vercel)
 
-1. **Contato** é a pessoa. **Oportunidade** é uma chance de vender um produto para ela. Um contato pode ter várias.
-2. **Categoria** (lead, prospect, cliente) é calculada pelas oportunidades. Ninguém edita.
-3. **Funil de venda com 8 etapas** (`src/domain/funil.ts`). Cada etapa tem um **Canvas**: objetivo, como validar, prazo, meta, quem move e motivos de perda. O card só anda quando o critério foi cumprido.
-4. **Pergunta Matadora**: uma pergunta por etapa que decide o próximo passo. Na primeira, o contato dá uma nota de 0 a 10: de 0 a 6 você nutre, 7 e 8 convida, 9 e 10 passa para o humano.
-5. **Handoff**: o robô qualifica, o humano fecha. A troca de mão sempre avisa o contato.
-6. **Ligação**: gravada com aviso, vira transcrição com trechos marcados (dor, meta, prazo, objeção, decisão) e follow-ups. O termômetro é do vendedor; a leitura da IA fica ao lado.
-7. **Regra de ouro do robô**: nunca fala preço, desconto, parcela ou condição (`podeRoboEnviar`). A trava está no código, não só no prompt.
+Siga o guia completo: **[IMPLEMENTAR.md](./IMPLEMENTAR.md)**.
 
-## Mapa das pastas
-
-```
-src/ds/         design system (componentes e tokens)
-src/domain/     tipos e regras puras (copie para o backend quando precisar)
-src/data/       dados de exemplo
-src/adapters/   portas de integração (interfaces + simulações)
-src/screens/    as telas
-supabase/       schema.sql e seed.sql
-tests/          testes das regras
+```bash
+cp .env.example .env.local
+# cole URL e chaves do Supabase
+npm run setup
+npm run db:push   # gera supabase/all.sql para colar no SQL Editor
 ```
 
-## Continuar no Cursor
+## O que vem pronto
 
-1. Abra esta pasta no Cursor.
-2. Crie um projeto novo no Supabase (seu, de teste). Rode `supabase/schema.sql` e depois `supabase/seed.sql` no editor SQL.
-3. Copie `.env.example` para `.env.local` e preencha a URL e a chave **anon**. Nunca coloque a chave `service_role` no front-end.
-4. Cole este prompt no Cursor e vá **uma etapa por vez**:
+| Parte | Estado |
+| --- | --- |
+| Telas (Hoje, Funil, Conversas, Contatos, Demanda, Relatórios, Agentes…) | Pronto |
+| 6 agentes (Cláudio, Scout, Scribe, Ledger, Pilot, Eco) | Pronto (regras + DecisionEngine; LLM opcional) |
+| MCP Cursor / GrokBot (~20 ferramentas) | Pronto em `/api/mcp/crm` |
+| WhatsApp via WAHA (QR) | Pronto (`docker compose up`) |
+| Schema SQL + RLS + agentes | Pronto em `supabase/migrations/` |
+| E-mail em massa / cobrança / coach | Em breve (ver `docs/LIVE-CHECKLIST.md`) |
 
-```text
-Você vai me ajudar a evoluir este CRM educacional. Eu sou empreendedor, não programador:
-explique em português simples e entregue em passos pequenos.
+## MCP em 1 minuto
 
-Contexto: leia README.md, src/domain/types.ts, src/domain/funil.ts, src/domain/rules.ts
-e supabase/schema.sql. Os dados em src/data/demo.ts são de exemplo.
+Token demo: `crm_demo_escrita`
 
-Regras:
-- Não mude o modelo (Contato -> Oportunidades) nem o schema sem me perguntar antes.
-- Toda regra nova entra em src/domain/rules.ts com teste em tests/.
-- Integrações novas entram como adaptador em src/adapters/, com a mesma interface do mock.
-- Nunca coloque segredo no código. Use .env.local.
-- Antes de cada mudança, me diga o que vai fazer e o que pode dar errado.
-
-Passo 1: ligue a lista de Contatos ao Supabase (leitura), com login por link mágico,
-mantendo os dados de exemplo como alternativa quando não houver .env.local.
-Mostre o resultado e espere eu aprovar para o passo 2 (mover card de etapa gravando em crm_movimentos).
+```bash
+curl -s -H "Authorization: Bearer crm_demo_escrita" \
+  -H "Content-Type: application/json" \
+  -d '{"tool":"crm_funil_resumo","arguments":{}}' \
+  http://localhost:3000/api/mcp/crm
 ```
 
-Ordem sugerida: 1) ler contatos do banco, 2) mover card gravando o histórico, 3) mensagens, 4) tarefas e notas, 5) ligações e transcrição (por último; é a mais cara e a mais sensível), 6) trocar o robô de exemplo por um real.
+Config do Cursor: ver `IMPLEMENTAR.md` e `.cursor/mcp.json.example`.
 
-## Antes de usar com cliente de verdade
+## Editar com IA
 
-- Troque as etapas, metas e a Pergunta Matadora pelas **suas**. Os números aqui são exemplo.
-- Avise o contato quando a conversa for gravada. Sem aviso, não grave.
-- Guarde áudio em bucket privado, com URL assinada.
-- Revise LGPD: finalidade, retenção e quem acessa.
-- Teste num projeto separado antes de colocar dado real.
+Abra o projeto no Cursor, leia `AGENTS.md` e peça em português:
+
+> Na tela de funil, ponha farol vermelho nas oportunidades com problema com o Cláudio.
+
+## Checklist da live
+
+Cada frase da live de 28/10 → [`docs/LIVE-CHECKLIST.md`](./docs/LIVE-CHECKLIST.md).
 
 ## Licença
 
-MIT. O design system (Design System 2027) e as fontes Geist (licença OFL, via `@fontsource`) acompanham o template.
+MIT. Design System 2027 e fontes Geist (OFL) acompanham o template.
