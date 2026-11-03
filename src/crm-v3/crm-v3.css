@@ -1,0 +1,96 @@
+/* IA para Donos · CRM v3 · tokens do export Claude Design.
+   Escopados em `.ds-root.crm-v3-root` para não vazar no site, portal, admin e checkout.
+   Fonte: export/crm-v3/tokens/crm-v3.css (25/10/2026). */
+
+.ds-root.crm-v3-root,
+.ds-root.crm-v3-root[data-theme="light"],
+.ds-root.crm-v3-root [data-theme="light"] {
+  color-scheme: light;
+  --bg: #F4F4F3; --bg-2: #EAEAE8; --surface: #FFFFFF; --surface-2: #F7F7F6;
+  --fg: #0A0A0A; --fg-2: rgba(10,10,10,.62); --fg-3: rgba(10,10,10,.60); --fg-dim: rgba(10,10,10,.45);
+  --hairline: rgba(10,10,10,.10); --hairline-2: rgba(10,10,10,.18); --control-border: rgba(10,10,10,.50);
+  --inverse-bg: #0A0A0A; --inverse-fg: #FFFFFF; --inverse-fg-2: #A0A2A7;
+  --verde: #52B788; --verde-ink: #1E6B4B; --verde-wash: rgba(82,183,136,.14);
+  --roxo: #A96AFB; --roxo-ink: #7B3FD6; --live: #EF2D2D;
+  --glass-bg: rgba(10,10,10,.72); --glass-border: rgba(255,255,255,.18); --glass-fg: #FFFFFF;
+  --ag-scout: #2F6FB3; --ag-scribe: #A86B12; --ag-ledger: #9A4E2C; --ag-pilot: #5E6E12; --ag-echo: #9B2F63;
+  --focus: #0A0A0A;
+}
+
+.ds-root.crm-v3-root[data-theme="dark"],
+.ds-root.crm-v3-root [data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #070707; --bg-2: #0F0F0F; --surface: #161616; --surface-2: #1C1C1C;
+  --fg: #FFFFFF; --fg-2: #AFAFAF; --fg-3: #AFAFAF; --fg-dim: #6E6E6E;
+  --hairline: #1E1E1E; --hairline-2: #2E2E2E; --control-border: #6E6E6E;
+  --inverse-bg: #F4F4F3; --inverse-fg: #0A0A0A; --inverse-fg-2: rgba(10,10,10,.62);
+  --verde-ink: #52B788; --roxo-ink: #A96AFB;
+  --glass-bg: rgba(15,15,15,.72); --glass-border: rgba(255,255,255,.14);
+  --ag-scout: #6AA6E8; --ag-scribe: #E0A84A; --ag-ledger: #D98A62; --ag-pilot: #A9BE4E; --ag-echo: #DB7AA6;
+  --focus: #FFFFFF;
+}
+
+.ds-root.crm-v3-root {
+  --orb: radial-gradient(circle at 30% 28%, rgba(255,255,255,.95) 0 9%, rgba(255,255,255,0) 30%), radial-gradient(circle at 70% 78%, #D6F27A 0, rgba(214,242,122,0) 48%), radial-gradient(circle at 30% 70%, #9FD4FF 0, rgba(159,212,255,0) 55%), radial-gradient(circle at 60% 30%, #B580FF 0, #A96AFB 70%);
+  --font-sans: var(--font-geist-sans, 'Geist'), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono, 'Geist Mono'), ui-monospace, 'SF Mono', Menlo, monospace;
+  --stage-novo: .25; --stage-claudio: .36; --stage-handoff: .47; --stage-briefing: .58; --stage-proposta: .69; --stage-oferta: .80;
+  --r-xs: 6px; --r-chip: 10px; --r-sm: 12px; --r-btn: 14px; --r-kpi: 16px; --r-card: 18px; --r-sheet: 24px; --r-pill: 999px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;
+  --touch: 44px; --h-topbar: 52px; --h-tabbar: 84px; --w-sidebar: 236px;
+  --sh-pop: 0 8px 24px rgba(0,0,0,.12); --sh-sheet: 0 -12px 32px rgba(0,0,0,.16); --sh-fab: 0 6px 16px rgba(0,0,0,.18);
+  --glass-bar-bg: color-mix(in oklab, var(--bg) 72%, transparent); --glass-blur: blur(16px) saturate(1.1);
+  --dur-1: 120ms; --dur-2: 150ms; --dur-3: 200ms; --dur-4: 250ms;
+  --ease-out: cubic-bezier(.22, 1, .36, 1); --ease-in: cubic-bezier(.4, 0, 1, 1);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.ds-root.crm-v3-root .crm-glass-bar {
+  background: var(--glass-bar-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.ds-root.crm-v3-root .crm-label {
+  font: 500 10px/1.3 var(--font-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+.ds-root.crm-v3-root .crm-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+}
+
+@keyframes crm-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes crm-pulse { 0% { box-shadow: 0 0 0 0 rgba(82,183,136,.45); } 70% { box-shadow: 0 0 0 7px rgba(82,183,136,0); } 100% { box-shadow: 0 0 0 0 rgba(82,183,136,0); } }
+@keyframes crm-skel { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+@keyframes crm-spin { to { transform: rotate(360deg); } }
+
+.ds-root.crm-v3-root :where(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-root.crm-v3-root *,
+  .ds-root.crm-v3-root *::before,
+  .ds-root.crm-v3-root *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .ds-root.crm-v3-root .crm-glass-bar {
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

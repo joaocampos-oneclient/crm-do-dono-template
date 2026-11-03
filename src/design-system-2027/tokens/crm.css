@@ -1,0 +1,136 @@
+/* Estilos das peças de layout do CRM. Usa só tokens de tokens.css. */
+
+.ds-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100dvh; }
+.ds-shell__main { padding: 20px 24px 48px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+.ds-sidebar { position: sticky; top: 0; align-self: start; height: 100dvh; overflow: auto; border-right: 1px solid var(--line); padding: 16px 12px; display: flex; flex-direction: column; gap: 14px; background: var(--bg-2); }
+.ds-sidebar__brand { padding: 4px 8px 8px; }
+.ds-sidebar__group { display: grid; gap: 2px; }
+.ds-sidebar__group-label { padding: 6px 10px 4px; }
+.ds-sidebar__item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-xs, 8px); color: var(--fg-2); text-decoration: none; font-size: 14px; }
+.ds-sidebar__item:hover { background: var(--surface); color: var(--fg); }
+.ds-sidebar__item[aria-current="page"] { background: var(--fg); color: var(--bg); }
+.ds-sidebar__badge { font: 11px/1 var(--font-mono); padding: 3px 6px; border-radius: 999px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+.ds-sidebar__item[aria-current="page"] .ds-sidebar__badge { background: var(--bg); }
+.ds-sidebar__foot { margin-top: auto; padding: 8px; display: grid; gap: 8px; }
+
+/* Mobile 2: tabbar de vidro; sidebar some (navegação = 5 abas) */
+.ds-mobile-nav {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  pointer-events: auto;
+}
+.ds-mobile-nav .ds-tabbar {
+  background: var(--glass-bg);
+  color: var(--glass-fg);
+  border-top: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+}
+.ds-mobile-nav .ds-tabbar__item { color: var(--glass-fg-2); background: transparent; border: 0; cursor: pointer; font: inherit; }
+.ds-mobile-nav .ds-tabbar__item[aria-current="page"] { color: var(--glass-fg); }
+
+.ds-mais { position: fixed; inset: 0; z-index: calc(var(--z-nav, 30) + 5); }
+.ds-mais__scrim { position: absolute; inset: 0; background: rgba(10, 10, 10, .4); }
+.ds-mais__sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  max-height: min(72dvh, 560px);
+  overflow: auto;
+  border-radius: var(--r-panel, 30px) var(--r-panel, 30px) 0 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+  display: grid; gap: 12px;
+  animation: ds-fade-up var(--dur-spatial, 360ms) var(--ease-out, ease) both;
+}
+.ds-mais__head { display: flex; justify-content: space-between; align-items: center; }
+.ds-mais__list { display: grid; gap: 4px; }
+.ds-mais__item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 12px; border-radius: var(--r-sm, 12px);
+  color: var(--fg); text-decoration: none; background: transparent; border: 0;
+  font: inherit; text-align: left; cursor: pointer; width: 100%;
+}
+.ds-mais__item-main { display: grid; gap: 2px; }
+.ds-mais__item:hover, .ds-mais__item[aria-current="page"] { background: var(--surface-alt); }
+
+/* Gate de login (fiel à produção) */
+.ds-gate--login { place-items: center; gap: 14px; background: var(--bg); }
+.ds-gate__eyebrow { text-align: center; }
+.ds-gate__card--login {
+  width: min(420px, 100%);
+  padding: 40px 36px;
+  border-radius: var(--r-card, 24px);
+  box-shadow: 0 2px 8px rgba(10, 10, 10, .06);
+}
+.ds-gate__title { margin: 0; font-size: clamp(26px, 4vw, 32px); letter-spacing: -0.03em; font-weight: 600; }
+.ds-gate__lead { margin: 0; color: var(--fg-2); font-size: var(--fs-body, 16px); line-height: 1.45; }
+.ds-gate__form { display: grid; gap: 16px; margin-top: 8px; }
+
+@media (max-width: 900px) {
+  .ds-shell { grid-template-columns: 1fr; }
+  .ds-sidebar { display: none; }
+  .ds-mobile-nav { display: block; }
+  .ds-shell__main {
+    padding: 16px 12px calc(120px + env(safe-area-inset-bottom));
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+  .ds-fab { bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 40; }
+}
+
+.ds-pagehead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.ds-pagehead__title { margin: 2px 0 0; font-size: 26px; letter-spacing: -0.02em; }
+.ds-pagehead__actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.ds-statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.ds-stat { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-card, 12px); background: var(--surface); display: grid; gap: 4px; }
+.ds-stat__value { font-size: 24px; letter-spacing: -0.02em; }
+.ds-stat__foot { display: flex; gap: 8px; align-items: baseline; font-size: 12px; color: var(--fg-3); flex-wrap: wrap; }
+.ds-stat__delta { font-family: var(--font-mono); }
+.ds-stat__delta.is-good { color: var(--verde-ink, #1b7f3b); }
+.ds-stat__delta.is-bad { color: var(--live-ink, #b3261e); }
+
+.ds-section { display: grid; gap: 10px; }
+.ds-section__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ds-section__title { margin: 0; font-size: 16px; }
+
+.ds-deflist { display: grid; gap: 8px; margin: 0; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.ds-deflist dd { margin: 2px 0 0; }
+
+.ds-formrow { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.ds-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ds-actions--end { justify-content: flex-end; }
+.ds-actions--between { justify-content: space-between; }
+
+/* Kanban com arrastar */
+.ds-kcard[draggable="true"] { cursor: grab; }
+.ds-kcard.is-dragging { opacity: .5; }
+.ds-kcol--over { outline: 2px dashed var(--fg); outline-offset: -2px; }
+.ds-kcol__sum { font: 12px/1.2 var(--font-mono); color: var(--fg-3); }
+
+/* Conversas: duas colunas */
+.ds-split { display: grid; gap: 16px; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: start; }
+.ds-split--wide { grid-template-columns: minmax(0, 360px) minmax(0, 1fr); }
+@media (max-width: 900px) { .ds-split, .ds-split--wide { grid-template-columns: 1fr; } }
+.ds-chatbox { display: grid; gap: 8px; max-height: 60dvh; overflow: auto; padding: 4px 2px; }
+.ds-composer { display: grid; gap: 8px; grid-template-columns: 1fr auto; align-items: end; }
+
+/* Ligação */
+.ds-callclock { font: 40px/1 var(--font-mono); letter-spacing: -0.02em; text-align: center; padding: 12px 0; }
+.ds-pre { white-space: pre-wrap; font: 12px/1.5 var(--font-mono); background: var(--surface-alt); border: 1px solid var(--line); border-radius: var(--r-xs, 8px); padding: 10px 12px; margin: 0; overflow: auto; max-height: 360px; }
+
+/* Tela de entrada */
+.ds-gate { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.ds-gate__card { width: min(520px, 100%); display: grid; gap: 14px; padding: 24px; }
+.ds-oplist { display: grid; gap: 8px; }
+
+/* Linha de tabela clicável e utilitários */
+.ds-clickable { cursor: pointer; }
+.ds-muted { color: var(--fg-3); }
+.ds-grid-2 { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+.ds-wrap { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ds-tag-ia { color: var(--roxo-ink, #5b3fd1); }

@@ -1,0 +1,39 @@
+/* Extensões visuais do CRM v3. Escopadas em .ds-root / .crm-v3 — não vazam.
+   Os tokens oficiais do export vivem em crm-v3.css (classe .crm-v3-root). */
+
+.ds-root {
+  --hairline: var(--line);
+  --hairline-2: var(--line-strong);
+  --surface-2: var(--surface-alt);
+}
+
+.crm-v3 {
+  min-width: 0;
+  overflow-x: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.crm-v3 dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crm-v3,
+  .crm-v3 *,
+  .crm-v3 *::before,
+  .crm-v3 *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .crm-v3 .crm-glass-bar {
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

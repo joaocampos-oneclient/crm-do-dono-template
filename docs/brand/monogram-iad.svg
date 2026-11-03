@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  
+  <rect width="128" height="128" rx="8" fill="#070707"></rect>
+  <rect x="1" y="1" width="126" height="126" rx="7" fill="none" stroke="#2E2E2E" stroke-width="1"></rect>
+  <text x="30" y="82" font-size="46" font-weight="600" letter-spacing="-1" fill="#FFFFFF">IA</text>
+  <rect x="66" y="38" width="3" height="56" fill="#52B788" transform="rotate(18 67.5 66)"></rect>
+  <text x="78" y="82" font-size="46" font-weight="300" fill="#FFFFFF">D</text>
+</svg>

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "crm-do-dono": {
+      "command": "npx",
+      "args": ["tsx", "scripts/mcp-stdio.ts"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "CRM_MCP_NIVEL": "escrita"
+      }
+    }
+  }
+}
