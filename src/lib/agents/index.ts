@@ -1,10 +1,34 @@
 import { crmConfig } from "@crm/config";
 import { decidir } from "./decision-engine";
-import { mencionaPreco } from "@/domain/rules";
-import { avaliarGuardrailsPosLlm, mencionaPrecoComercial } from "@/domain/reciclador";
+import { detectarPedidoOptOut } from "@/domain/reciclador";
+import {
+  avaliarPilotPre,
+  limparFollowupsScribe,
+  mencionaPrecoOuCondicao,
+  minutosDeSilencio,
+  normalizarHistorico,
+  notasVazias,
+  numerosInventados,
+  pediuAtendimentoHumano,
+  textoDeCobranca,
+  valorOuNaoInformado,
+} from "@/domain/agentes-guardrails";
+import { deveFazerHandoff, mencionaPreco } from "@/domain/rules";
 import type { AgenteSlug, ExecucaoEntrada, ResultadoAgente } from "./types";
 import { ExecucaoSaida } from "./types";
 import { effectiveAgentLlmModel, gerarComLlm, parseJsonDaResposta, temLlmKey } from "./llm";
+import type { LlmGenerateResult } from "./llm";
+import {
+  ClaudioSaidaSchema,
+  EcoSaidaSchema,
+  LedgerSaidaSchema,
+  PilotSaidaSchema,
+  ScoutSaidaSchema,
+  ScribeSaidaSchema,
+  validarSaida,
+} from "./schemas";
+import type { z } from "zod";
+import { avaliarGuardrailsPosLlm, mencionaPrecoComercial } from "@/domain/reciclador";
 
 const cfg = crmConfig.agentes;
 
@@ -35,9 +59,42 @@ function baseRegras(parcial: Omit<ResultadoAgente, "usadoLlm" | "usadoJev"> & { 
   return { usadoJev: false, usadoLlm: false, ...parcial };
 }
 
+/** Chama o LLM e valida o JSON contra o schema. `invalido` = o modelo respondeu, mas fora do contrato. */
+async function chamarLlmValidado<S extends z.ZodTypeAny>(
+  slug: AgenteSlug,
+  prompt: string,
+  schema: S,
+): Promise<{ llm: LlmGenerateResult | null; dados: z.infer<S> | null; invalido: boolean }> {
+  const llm = await gerarComLlm({ slug, prompt });
+  if (!llm) return { llm: null, dados: null, invalido: false };
+  const dados = validarSaida(schema, parseJsonDaResposta(llm.text));
+  return { llm, dados, invalido: dados === null };
+}
+
+/** Tokens gastos mesmo quando a resposta foi descartada (custo é custo). */
+const tokensDe = (llm: LlmGenerateResult | null) => llm?.tokens ?? 0;
+
+const ctxTexto = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+// ───────────────────────── Cláudio ─────────────────────────
+
 async function claudio(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
   const rascunho = String(entrada.contexto.rascunho ?? "Oi! Posso te fazer uma pergunta rápida para te ajudar melhor?");
-  if (mencionaPreco(rascunho)) {
+  const ultimaDoContato = ctxTexto(entrada.contexto.ultimaMensagemContato);
+
+  if (ultimaDoContato && detectarPedidoOptOut(ultimaDoContato)) {
+    return baseRegras({
+      custoTokens: 0,
+      saida: ExecucaoSaida.parse({
+        resumo: "Bloqueado: o contato pediu para parar.",
+        acaoSugerida: "Não enviar. Registrar opt-out.",
+        requerAprovacao: true,
+        payload: { bloqueado: true, motivo: "opt_out" },
+      }),
+    });
+  }
+
+  if (mencionaPrecoOuCondicao(rascunho)) {
     return baseRegras({
       custoTokens: 0,
       saida: ExecucaoSaida.parse({
@@ -49,251 +106,301 @@ async function claudio(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
     });
   }
 
-  const llm = await gerarComLlm({
-    slug: "claudio",
-    prompt: `Rascunho do operador/robô:\n${rascunho}\n\nMelhore se preciso, sem inventar preço. Responda em JSON.`,
-  });
-  if (llm) {
-    const json = parseJsonDaResposta(llm.text);
-    if (json?.bloqueado || (typeof json?.texto === "string" && mencionaPreco(String(json.texto)))) {
+  const { llm, dados, invalido } = await chamarLlmValidado(
+    "claudio",
+    `Rascunho do operador/robô:\n${rascunho}\n${ultimaDoContato ? `\nÚltima mensagem do contato:\n${ultimaDoContato}\n` : ""}\nMelhore se preciso, sem inventar preço. Responda em JSON.`,
+    ClaudioSaidaSchema,
+  );
+
+  if (llm && dados) {
+    if (dados.bloqueado || (dados.texto && mencionaPrecoOuCondicao(dados.texto))) {
       return {
         custoTokens: llm.tokens,
         usadoJev: false,
         usadoLlm: true,
         saida: ExecucaoSaida.parse({
-          resumo: String(json?.resumo ?? "Bloqueado: Cláudio nunca fala preço."),
-          acaoSugerida: String(json?.acaoSugerida ?? "Reescrever sem preço."),
+          resumo: dados.resumo ?? "Bloqueado: Cláudio nunca fala preço.",
+          acaoSugerida: dados.acaoSugerida ?? "Reescrever sem preço.",
           requerAprovacao: true,
-          payload: { bloqueado: true, motivo: "preco", viaLlm: true },
+          payload: { bloqueado: true, motivo: dados.bloqueado ? (dados.motivo ?? "preco") : "preco", viaLlm: true },
         }),
       };
-    }
-    const texto = typeof json?.texto === "string" ? json.texto : llm.text;
-    if (mencionaPreco(texto)) {
-      return baseRegras({
-        custoTokens: llm.tokens,
-        saida: ExecucaoSaida.parse({
-          resumo: "Bloqueado: Cláudio nunca fala preço (LLM).",
-          acaoSugerida: "Reescrever sem preço.",
-          requerAprovacao: true,
-          payload: { bloqueado: true, motivo: "preco", viaLlm: true },
-        }),
-      });
     }
     return {
       custoTokens: llm.tokens,
       usadoJev: false,
       usadoLlm: true,
       saida: ExecucaoSaida.parse({
-        resumo: String(json?.resumo ?? `${cfg.claudio.nome} (LLM) pronto para enviar.`),
-        acaoSugerida: String(json?.acaoSugerida ?? "Enviar mensagem (sem preço)."),
+        resumo: dados.resumo ?? `${cfg.claudio.nome} (LLM) pronto para enviar.`,
+        acaoSugerida: dados.acaoSugerida ?? "Enviar mensagem (sem preço).",
         requerAprovacao: false,
-        payload: { texto, viaLlm: true },
+        payload: { texto: dados.texto, viaLlm: true },
       }),
     };
   }
 
   return baseRegras({
-    custoTokens: 0,
+    custoTokens: tokensDe(llm),
     saida: ExecucaoSaida.parse({
       resumo: `${cfg.claudio.nome} pronto para enviar.`,
       acaoSugerida: "Enviar mensagem (sem preço).",
       requerAprovacao: false,
-      payload: { texto: rascunho },
+      payload: invalido ? { texto: rascunho, llmInvalido: true } : { texto: rascunho },
     }),
   });
 }
+
+// ───────────────────────── Scout ─────────────────────────
+
+const PROXIMO_PASSO: Record<string, string> = {
+  aguardar: "Aguardar a resposta e revisar em 24 horas.",
+  retomar: "Preparar um follow-up sem preço (Pilot) e aprovar o envio.",
+  handoff: "Passar a conversa para um humano agora.",
+  nutrir: "Enviar conteúdo útil, sem pressionar.",
+  ignorar: "Não contatar.",
+};
 
 async function scout(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
-  const texto = String(entrada.contexto.textoConversas ?? "");
-  const minutosSilencio = Number(entrada.contexto.minutosSilencio ?? 0);
-  const nota = entrada.contexto.nota == null ? null : Number(entrada.contexto.nota);
-  const pediuPreco = Boolean(entrada.contexto.pediuPreco);
-  const pediuHumano = Boolean(entrada.contexto.pediuHumano);
+  const ctx = entrada.contexto;
+  const historico = normalizarHistorico(ctx.mensagens);
+  const textoHistorico = historico.map((m) => `${m.autor}: ${m.texto}`).join("\n");
+  const texto = [String(ctx.textoConversas ?? ""), textoHistorico].filter(Boolean).join("\n");
 
-  const llm = await gerarComLlm({
-    slug: "scout",
-    prompt: JSON.stringify({ textoConversas: texto, minutosSilencio, nota, pediuPreco, pediuHumano }),
-  });
-  if (llm) {
-    const json = parseJsonDaResposta(llm.text);
-    const acao = String(json?.acao ?? "");
-    if (["aguardar", "retomar", "handoff", "nutrir", "ignorar"].includes(acao)) {
-      const payload = {
-        rotulo: String(json?.rotulo ?? acao),
-        confianca: Number(json?.confianca ?? 0.7),
-        acao,
-        porque: String(json?.porque ?? json?.acaoSugerida ?? ""),
-        usadoJev: false,
-        viaLlm: true,
-      };
-      return {
-        custoTokens: llm.tokens,
-        usadoJev: false,
-        usadoLlm: true,
-        saida: ExecucaoSaida.parse({
-          resumo: String(json?.resumo ?? `Scout: ${payload.rotulo} (${payload.acao})`),
-          acaoSugerida: payload.porque,
-          requerAprovacao: acao === "handoff" || acao === "retomar",
-          payload,
-        }),
-      };
+  const calculado = minutosDeSilencio(historico, ctxTexto(ctx.agora) ?? undefined);
+  const minutosSilencio = calculado ?? Number(ctx.minutosSilencio ?? 0);
+  const nota = ctx.nota == null ? null : Number(ctx.nota);
+
+  const ultimaDoContato =
+    [...historico].reverse().find((m) => m.autor === "contato")?.texto ?? ctxTexto(ctx.ultimaMensagemContato) ?? "";
+  const pediuPreco = ctx.pediuPreco === undefined ? mencionaPreco(ultimaDoContato) : Boolean(ctx.pediuPreco);
+  const pediuHumano = ctx.pediuHumano === undefined ? pediuAtendimentoHumano(ultimaDoContato) : Boolean(ctx.pediuHumano);
+  const pediuParar = Boolean(ultimaDoContato) && detectarPedidoOptOut(ultimaDoContato);
+
+  const entradaDecisao = { textoConversas: texto, minutosSilencio, nota, pediuPreco, pediuHumano };
+
+  /** Regras duras vencem o modelo: handoff por gatilho objetivo, silêncio absoluto em opt-out. */
+  const aplicarRegrasDuras = (d: { acao: string; porque: string }) => {
+    if (pediuParar) {
+      return { acao: "ignorar", porque: "Contato pediu para parar.", corrigido: d.acao !== "ignorar" };
     }
-  }
-
-  const d = await decidir({ textoConversas: texto, minutosSilencio, nota, pediuPreco, pediuHumano });
-  return {
-    custoTokens: d.usadoJev ? 1 : 0,
-    usadoJev: d.usadoJev,
-    usadoLlm: false,
-    saida: ExecucaoSaida.parse({
-      resumo: `Scout: ${d.rotulo} (${d.acao})`,
-      acaoSugerida: d.porque,
-      requerAprovacao: d.acao === "handoff" || d.acao === "retomar",
-      payload: d,
-    }),
+    if (deveFazerHandoff({ nota, pediuPreco, pediuHumano }) && d.acao !== "handoff") {
+      return { acao: "handoff", porque: "Gatilho objetivo: pediu preço/humano ou nota 9–10.", corrigido: true };
+    }
+    return { acao: d.acao, porque: d.porque, corrigido: false };
   };
-}
 
-async function scribe(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
-  const notas = String(entrada.contexto.notasReuniao ?? "Reunião sem notas.");
-  const llm = await gerarComLlm({
-    slug: "scribe",
-    prompt: `Notas da reunião:\n${notas}`,
-  });
-  if (llm) {
-    const json = parseJsonDaResposta(llm.text);
-    const followups = Array.isArray(json?.followups)
-      ? json!.followups.map(String)
-      : ["Enviar resumo ao contato", "Atualizar briefing", "Agendar próximo passo"];
+  const { llm, dados, invalido } = await chamarLlmValidado("scout", JSON.stringify(entradaDecisao), ScoutSaidaSchema);
+
+  if (llm && dados) {
+    const d = aplicarRegrasDuras(dados);
+    const proximoPasso = d.corrigido ? PROXIMO_PASSO[d.acao] : (dados.proximoPasso ?? PROXIMO_PASSO[d.acao]);
+    const payload = {
+      rotulo: dados.rotulo,
+      confianca: dados.confianca,
+      acao: d.acao,
+      porque: d.porque,
+      proximoPasso,
+      minutosSilencio,
+      acaoCorrigida: d.corrigido,
+      usadoJev: false,
+      viaLlm: true,
+    };
     return {
       custoTokens: llm.tokens,
       usadoJev: false,
       usadoLlm: true,
       saida: ExecucaoSaida.parse({
-        resumo: String(json?.resumo ?? "Scribe (LLM) gerou resumo e follow-ups."),
-        acaoSugerida: String(json?.acaoSugerida ?? "Criar tarefas a partir do resumo."),
-        requerAprovacao: true,
-        payload: { resumo: String(json?.resumo ?? llm.text.slice(0, 500)), followups, viaLlm: true },
+        resumo: dados.resumo ?? `Scout: ${payload.rotulo} (${payload.acao})`,
+        acaoSugerida: d.porque,
+        requerAprovacao: d.acao === "handoff" || d.acao === "retomar",
+        payload,
       }),
     };
   }
+
+  const base = await decidir(entradaDecisao);
+  const d = aplicarRegrasDuras(base);
+  const payload = {
+    ...base,
+    acao: d.acao,
+    porque: d.porque,
+    proximoPasso: PROXIMO_PASSO[d.acao],
+    minutosSilencio,
+    ...(d.corrigido ? { acaoCorrigida: true } : {}),
+    ...(invalido ? { llmInvalido: true } : {}),
+  };
+  return {
+    custoTokens: base.usadoJev ? 1 : tokensDe(llm),
+    usadoJev: base.usadoJev,
+    usadoLlm: false,
+    saida: ExecucaoSaida.parse({
+      resumo: `Scout: ${base.rotulo} (${d.acao})`,
+      acaoSugerida: d.porque,
+      requerAprovacao: d.acao === "handoff" || d.acao === "retomar",
+      payload,
+    }),
+  };
+}
+
+// ───────────────────────── Scribe ─────────────────────────
+
+async function scribe(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
+  const notas = String(entrada.contexto.notasReuniao ?? "").trim();
+
+  if (notasVazias(notas)) {
+    return baseRegras({
+      custoTokens: 0,
+      saida: ExecucaoSaida.parse({
+        resumo: "Sem notas: nada a resumir.",
+        acaoSugerida: "Cole as notas da reunião para gerar o resumo e os follow-ups.",
+        requerAprovacao: true,
+        payload: { resumo: "Sem notas", followups: [] },
+      }),
+    });
+  }
+
+  const { llm, dados, invalido } = await chamarLlmValidado("scribe", `Notas da reunião:\n${notas}`, ScribeSaidaSchema);
+  const inventou = Boolean(dados) && numerosInventados(dados!.resumo, notas).length > 0;
+
+  if (llm && dados && !inventou) {
+    return {
+      custoTokens: llm.tokens,
+      usadoJev: false,
+      usadoLlm: true,
+      saida: ExecucaoSaida.parse({
+        resumo: "Scribe (LLM) gerou resumo e follow-ups.",
+        acaoSugerida: dados.acaoSugerida ?? "Criar tarefas a partir do resumo.",
+        requerAprovacao: true,
+        payload: { resumo: dados.resumo, followups: limparFollowupsScribe(dados.followups, notas), viaLlm: true },
+      }),
+    };
+  }
+
+  // Regras locais: resumo = início das notas; follow-ups só de linhas que já são tarefa.
+  const linhasTarefa = notas
+    .split(/\n+/)
+    .map((l) => l.replace(/^[\s\-*•\d.)]+/, "").trim())
+    .filter((l) => /^(?:enviar|marcar|agendar|ligar|retornar|mandar|revisar|preparar|confirmar|pedir|criar|atualizar)\b/i.test(l));
   return baseRegras({
-    custoTokens: 0,
+    custoTokens: tokensDe(llm),
     saida: ExecucaoSaida.parse({
       resumo: "Scribe gerou resumo e follow-ups.",
       acaoSugerida: "Criar tarefas a partir do resumo.",
       requerAprovacao: true,
       payload: {
         resumo: notas.slice(0, 500),
-        followups: ["Enviar resumo ao contato", "Atualizar briefing", "Agendar próximo passo"],
+        followups: limparFollowupsScribe(linhasTarefa, notas),
+        ...(invalido || inventou ? { llmInvalido: true } : {}),
       },
     }),
   });
 }
 
+// ───────────────────────── Ledger ─────────────────────────
+
+const LEDGER_ACAO_PADRAO = "Cláudio envia o link de acesso e um conteúdo novo, só para ajudar a começar.";
+
 async function ledger(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
   const logins7d = Number(entrada.contexto.logins7d ?? 0);
   const diasDesdePagamento = Number(entrada.contexto.diasDesdePagamento ?? 0);
   const risco = diasDesdePagamento <= 7 && logins7d < 2;
+  const fixos = { logins7d, diasDesdePagamento, nuncaCobra: true, nuncaAutomatico: true };
 
-  const llm = await gerarComLlm({
-    slug: "ledger",
-    prompt: JSON.stringify({ logins7d, diasDesdePagamento }),
-  });
-  if (llm) {
-    const json = parseJsonDaResposta(llm.text);
-    const riscoLlm = typeof json?.risco === "boolean" ? json.risco : risco;
+  const regras = (extra: Record<string, unknown> = {}, tokens = 0) =>
+    baseRegras({
+      custoTokens: tokens,
+      saida: ExecucaoSaida.parse({
+        resumo: risco ? "Ledger: risco de cancelamento (menos de 2 logins em 7 dias)." : "Ledger: saúde ok.",
+        acaoSugerida: risco ? LEDGER_ACAO_PADRAO : "Monitorar.",
+        requerAprovacao: true,
+        payload: { risco, ...fixos, ...extra },
+      }),
+    });
+
+  const { llm, dados, invalido } = await chamarLlmValidado(
+    "ledger",
+    JSON.stringify({ logins7d, diasDesdePagamento }),
+    LedgerSaidaSchema,
+  );
+
+  if (llm && dados) {
+    if (textoDeCobranca(`${dados.resumo} ${dados.acaoSugerida ?? ""}`)) {
+      return regras({ bloqueado: true, motivo: "cobranca", viaLlm: true }, llm.tokens);
+    }
     return {
       custoTokens: llm.tokens,
       usadoJev: false,
       usadoLlm: true,
       saida: ExecucaoSaida.parse({
-        resumo: String(json?.resumo ?? (riscoLlm ? "Ledger: risco de cancelamento." : "Ledger: saúde ok.")),
-        acaoSugerida: String(
-          json?.acaoSugerida ??
-            (riscoLlm ? "Cláudio envia link de login / conteúdo novo (sem cobrar)." : "Monitorar."),
-        ),
+        resumo: dados.resumo,
+        acaoSugerida: dados.acaoSugerida ?? (dados.risco ? LEDGER_ACAO_PADRAO : "Monitorar."),
         requerAprovacao: true,
-        payload: {
-          risco: riscoLlm,
-          logins7d,
-          diasDesdePagamento,
-          nuncaCobra: true,
-          nuncaAutomatico: true,
-          viaLlm: true,
-        },
+        payload: { risco: dados.risco, ...fixos, viaLlm: true },
       }),
     };
   }
-
-  return baseRegras({
-    custoTokens: 0,
-    saida: ExecucaoSaida.parse({
-      resumo: risco ? "Ledger: risco de cancelamento (menos de 2 logins em 7 dias)." : "Ledger: saúde ok.",
-      acaoSugerida: risco ? "Cláudio envia link de login / conteúdo novo (sem cobrar)." : "Monitorar.",
-      requerAprovacao: true,
-      payload: { risco, logins7d, diasDesdePagamento, nuncaCobra: true, nuncaAutomatico: true },
-    }),
-  });
+  return regras(invalido ? { llmInvalido: true } : {}, tokensDe(llm));
 }
 
+// ───────────────────────── Pilot ─────────────────────────
+
 async function pilot(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
-  const horasDesdeUltima =
-    entrada.contexto.horasDesdeUltimaAutomatica == null
-      ? null
-      : Number(entrada.contexto.horasDesdeUltimaAutomatica);
-  const diasParado = Number(entrada.contexto.diasParado ?? 0);
-  if (diasParado >= crmConfig.tetoAntiLoopDias) {
+  const ctx = entrada.contexto;
+  const horasDesdeUltima = ctx.horasDesdeUltimaAutomatica == null ? null : Number(ctx.horasDesdeUltimaAutomatica);
+  const diasParado = Number(ctx.diasParado ?? 0);
+  const ultimaDoContato = ctxTexto(ctx.ultimaMensagemContato);
+
+  const pre = avaliarPilotPre({
+    horasDesdeUltimaAutomatica: horasDesdeUltima,
+    diasParado,
+    ultimaMensagemContato: ultimaDoContato,
+    cooldownHoras: crmConfig.cooldownMensagemHoras,
+    tetoDias: crmConfig.tetoAntiLoopDias,
+  });
+  if (!pre.ok) {
+    const porBloqueio = {
+      teto_anti_loop: { resumo: "Pilot pausado pelo teto anti-loop.", acao: "Revisar manualmente.", aprov: true, extra: { pausado: true } },
+      cooldown: { resumo: "Pilot em cooldown de 48h.", acao: "Aguardar.", aprov: false, extra: { cooldown: true } },
+      opt_out: { resumo: "Pilot bloqueado: o contato pediu para parar.", acao: "Não enviar. Registrar opt-out.", aprov: true, extra: { bloqueado: true } },
+      recusa_recente: { resumo: "Pilot bloqueado: o contato recusou recentemente.", acao: "Não insistir.", aprov: true, extra: { bloqueado: true } },
+    }[pre.bloqueio];
     return baseRegras({
       custoTokens: 0,
       saida: ExecucaoSaida.parse({
-        resumo: "Pilot pausado pelo teto anti-loop.",
-        acaoSugerida: "Revisar manualmente.",
-        requerAprovacao: true,
-        payload: { pausado: true },
+        resumo: porBloqueio.resumo,
+        acaoSugerida: porBloqueio.acao,
+        requerAprovacao: porBloqueio.aprov,
+        payload: { ...porBloqueio.extra, motivo: pre.bloqueio },
       }),
     });
   }
-  if (horasDesdeUltima !== null && horasDesdeUltima < crmConfig.cooldownMensagemHoras) {
-    return baseRegras({
-      custoTokens: 0,
-      saida: ExecucaoSaida.parse({
-        resumo: "Pilot em cooldown de 48h.",
-        acaoSugerida: "Aguardar.",
-        requerAprovacao: false,
-        payload: { cooldown: true },
-      }),
-    });
-  }
-  const texto = String(
-    entrada.contexto.textoFollowup ?? "Passando para retomar nosso papo. Quando fica bom pra você?",
-  );
-  if (mencionaPreco(texto)) {
+
+  const texto = String(ctx.textoFollowup ?? "Passando para retomar nosso papo. Quando fica bom pra você?");
+  if (mencionaPrecoOuCondicao(texto)) {
     return baseRegras({
       custoTokens: 0,
       saida: ExecucaoSaida.parse({
         resumo: "Pilot bloqueado: texto menciona preço.",
         requerAprovacao: true,
-        payload: { bloqueado: true },
+        payload: { bloqueado: true, motivo: "preco" },
       }),
     });
   }
 
-  const llm = await gerarComLlm({
-    slug: "pilot",
-    prompt: JSON.stringify({ textoFollowup: texto, horasDesdeUltima, diasParado }),
-  });
-  if (llm) {
-    const json = parseJsonDaResposta(llm.text);
-    const out = typeof json?.texto === "string" ? json.texto : texto;
-    if (mencionaPreco(out)) {
+  const { llm, dados, invalido } = await chamarLlmValidado(
+    "pilot",
+    JSON.stringify({ textoFollowup: texto, horasDesdeUltima, diasParado, ultimaMensagemContato: ultimaDoContato }),
+    PilotSaidaSchema,
+  );
+
+  if (llm && dados) {
+    if (mencionaPrecoOuCondicao(dados.texto)) {
       return baseRegras({
         custoTokens: llm.tokens,
         saida: ExecucaoSaida.parse({
           resumo: "Pilot bloqueado: LLM mencionou preço.",
           requerAprovacao: true,
-          payload: { bloqueado: true, viaLlm: true },
+          payload: { bloqueado: true, motivo: "preco", viaLlm: true },
         }),
       });
     }
@@ -302,56 +409,47 @@ async function pilot(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
       usadoJev: false,
       usadoLlm: true,
       saida: ExecucaoSaida.parse({
-        resumo: String(json?.resumo ?? "Pilot: follow-up pronto (LLM)."),
-        acaoSugerida: String(json?.acaoSugerida ?? "Enviar após aprovação."),
+        resumo: dados.resumo ?? "Pilot: follow-up pronto (LLM).",
+        acaoSugerida: dados.acaoSugerida ?? "Enviar após aprovação.",
         requerAprovacao: true,
-        payload: { texto: out, viaLlm: true },
+        payload: { texto: dados.texto, viaLlm: true },
       }),
     };
   }
 
   return baseRegras({
-    custoTokens: 0,
+    custoTokens: tokensDe(llm),
     saida: ExecucaoSaida.parse({
       resumo: "Pilot: follow-up pronto.",
       acaoSugerida: "Enviar após aprovação.",
       requerAprovacao: true,
-      payload: { texto },
+      payload: invalido ? { texto, llmInvalido: true } : { texto },
     }),
   });
 }
 
-async function eco(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
-  const nome = String(entrada.contexto.nome ?? "Lead");
-  const dor = String(entrada.contexto.dor ?? "não informada");
-  const meta = String(entrada.contexto.meta ?? "não informada");
-  const nota = entrada.contexto.nota ?? "—";
+// ───────────────────────── Eco ─────────────────────────
 
-  const llm = await gerarComLlm({
-    slug: "eco",
-    prompt: JSON.stringify({ nome, dor, meta, nota }),
-  });
-  if (llm) {
-    const json = parseJsonDaResposta(llm.text);
-    const briefing =
-      typeof json?.briefing === "string"
-        ? json.briefing
-        : [
-            `Briefing · ${nome}`,
-            `Dor: ${dor}`,
-            `Meta: ${meta}`,
-            `Nota da Pergunta Matadora: ${nota}`,
-            llm.text.slice(0, 400),
-          ].join("\n");
+async function eco(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
+  const nome = valorOuNaoInformado(entrada.contexto.nome);
+  const dor = valorOuNaoInformado(entrada.contexto.dor);
+  const meta = valorOuNaoInformado(entrada.contexto.meta);
+  const nota = valorOuNaoInformado(entrada.contexto.nota);
+  const fonte = JSON.stringify({ nome, dor, meta, nota });
+
+  const { llm, dados, invalido } = await chamarLlmValidado("eco", fonte, EcoSaidaSchema);
+  const inventou = Boolean(dados) && (numerosInventados(dados!.briefing, fonte).length > 0 || mencionaPrecoOuCondicao(dados!.briefing));
+
+  if (llm && dados && !inventou) {
     return {
       custoTokens: llm.tokens,
       usadoJev: false,
       usadoLlm: true,
       saida: ExecucaoSaida.parse({
-        resumo: String(json?.resumo ?? `Eco (LLM) preparou briefing de ${nome}.`),
-        acaoSugerida: String(json?.acaoSugerida ?? "Abrir na reunião."),
+        resumo: dados.resumo ?? `Eco (LLM) preparou briefing de ${nome}.`,
+        acaoSugerida: dados.acaoSugerida ?? "Abrir na reunião.",
         requerAprovacao: false,
-        payload: { briefing, viaLlm: true },
+        payload: { briefing: dados.briefing, viaLlm: true },
       }),
     };
   }
@@ -364,12 +462,12 @@ async function eco(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
     `Não repetir perguntas já respondidas ao ${cfg.claudio.nome}.`,
   ].join("\n");
   return baseRegras({
-    custoTokens: 0,
+    custoTokens: tokensDe(llm),
     saida: ExecucaoSaida.parse({
       resumo: `Eco preparou briefing de ${nome}.`,
       acaoSugerida: "Abrir na reunião.",
       requerAprovacao: false,
-      payload: { briefing },
+      payload: invalido || inventou ? { briefing, llmInvalido: true } : { briefing },
     }),
   });
 }

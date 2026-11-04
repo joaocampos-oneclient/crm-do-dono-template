@@ -100,9 +100,13 @@ export function parseMessageData(data: unknown): {
   };
 }
 
-function autorDe(type: MessageEventType): "contato" | "humano" | "robo" {
+/** Prefixos de eventId das mensagens enviadas pelos agentes (Cláudio, Pilot, Ember). */
+const PREFIXOS_EVENTO_ROBO = ["claudio_", "agente_", "pilot_", "ember_"];
+
+function autorDe(type: MessageEventType, eventId = ""): "contato" | "humano" | "robo" {
   if (type === "message.received") return "contato";
-  return "humano"; // enviadas pelo CRM / operador / agente → humano ou robo; default humano
+  if (PREFIXOS_EVENTO_ROBO.some((p) => eventId.startsWith(p))) return "robo";
+  return "humano"; // enviadas pelo CRM / operador → humano
 }
 
 function telefoneDoEvento(type: MessageEventType, from?: string, to?: string): string | null {
@@ -210,7 +214,7 @@ export async function ingestWhatsAppMessage(opts: {
   const status = opts.type.replace("message.", "") as "received" | "sent" | "delivered" | "read" | "failed";
   const texto = parsed.text?.trim() || (status === "received" ? "(mídia ou texto vazio)" : `(status ${status})`);
   const em = opts.timestamp || new Date().toISOString();
-  const autor = autorDe(opts.type);
+  const autor = autorDe(opts.type, opts.eventId);
 
   // Supabase
   const viaSb = await withSupabase(async (sb) => {
@@ -279,16 +283,32 @@ export async function ingestWhatsAppMessage(opts: {
 
   const notificarReciclador = async (contatoId?: string) => {
     if (opts.type !== "message.received" || !parsed.text?.trim()) return;
+    let recicladorAgiu = false;
     try {
       const { processarRespostaLeadReciclador } = await import("@/lib/reciclador/handoff");
-      await processarRespostaLeadReciclador({
+      const r = await processarRespostaLeadReciclador({
+        phoneDigits: phone,
+        contatoId,
+        texto: parsed.text.trim(),
+        timestamp: em,
+      });
+      recicladorAgiu =
+        r.optOutRegistrado || r.itensAtribuidosIds.length > 0 || r.handoffHumano || r.respostaClaudioEnviada;
+    } catch (e) {
+      console.warn("[whatsapp/ingest -> reciclador]", e instanceof Error ? e.message : e);
+    }
+    // Auto-atendimento (opt-in): só depois do Reciclador e só se ele não tratou a mensagem.
+    if (recicladorAgiu) return;
+    try {
+      const { processarMensagemRecebidaAgentes } = await import("@/lib/agents/auto");
+      await processarMensagemRecebidaAgentes({
         phoneDigits: phone,
         contatoId,
         texto: parsed.text.trim(),
         timestamp: em,
       });
     } catch (e) {
-      console.warn("[whatsapp/ingest -> reciclador]", e instanceof Error ? e.message : e);
+      console.warn("[whatsapp/ingest -> agentes]", e instanceof Error ? e.message : e);
     }
   };
 
@@ -335,4 +355,100 @@ export async function ingestWhatsAppMessage(opts: {
 export function listLocalMessages(contatoId?: string): LocalMsg[] {
   const db = loadLocal();
   return contatoId ? db.mensagens.filter((m) => m.contatoId === contatoId) : db.mensagens;
+}
+
+export type MensagemHistorico = { autor: "contato" | "robo" | "humano"; texto: string; em: string };
+
+export type HistoricoContato = {
+  contatoId?: string;
+  nome?: string;
+  mensagens: MensagemHistorico[];
+  /** Supabase: crm_contatos.handoff_pendente. Local: sempre false (use o marcador local). */
+  handoffPendente: boolean;
+  /** Supabase: crm_contatos.dono === "humano". */
+  donoHumano: boolean;
+};
+
+/**
+ * Últimas mensagens de um contato (mais antigas primeiro), por id ou telefone.
+ * Supabase quando configurado; senão arquivo local.
+ */
+export async function carregarHistoricoContato(opts: {
+  contatoId?: string;
+  phoneDigits?: string;
+  limite?: number;
+}): Promise<HistoricoContato> {
+  const limite = Math.max(1, Math.min(200, opts.limite ?? 20));
+  const suffix = opts.phoneDigits ? opts.phoneDigits.replace(/\D/g, "").slice(-11) : "";
+
+  const viaSb = await withSupabase(async (sb) => {
+    let contato: { id: string; nome?: string; handoff_pendente?: boolean; dono?: string } | null = null;
+    if (opts.contatoId) {
+      const { data } = await sb
+        .from("crm_contatos")
+        .select("id,nome,handoff_pendente,dono")
+        .eq("id", opts.contatoId)
+        .maybeSingle();
+      contato = data ?? null;
+    }
+    if (!contato && suffix) {
+      const { data } = await sb
+        .from("crm_contatos")
+        .select("id,nome,handoff_pendente,dono")
+        .ilike("telefone_digitos", `%${suffix}`)
+        .limit(1)
+        .maybeSingle();
+      contato = data ?? null;
+    }
+    if (!contato) return null;
+    const { data: msgs } = await sb
+      .from("crm_mensagens")
+      .select("autor,texto,em")
+      .eq("contato_id", contato.id)
+      .order("em", { ascending: false })
+      .limit(limite);
+    const mensagens = ((msgs ?? []) as MensagemHistorico[]).slice().reverse();
+    return {
+      contatoId: contato.id,
+      nome: contato.nome,
+      mensagens,
+      handoffPendente: Boolean(contato.handoff_pendente),
+      donoHumano: contato.dono === "humano",
+    } satisfies HistoricoContato;
+  });
+  if (viaSb) return viaSb;
+
+  const db = loadLocal();
+  const contato = db.contatos.find(
+    (c) => (opts.contatoId && c.id === opts.contatoId) || (suffix && c.telefoneDigitos.endsWith(suffix)),
+  );
+  if (!contato) return { mensagens: [], handoffPendente: false, donoHumano: false };
+  const mensagens = db.mensagens
+    .filter((m) => m.contatoId === contato.id && !m.texto.startsWith("(status "))
+    .sort((a, b) => Date.parse(a.em) - Date.parse(b.em))
+    .slice(-limite)
+    .map((m) => ({ autor: m.autor, texto: m.texto, em: m.em }));
+  return { contatoId: contato.id, nome: contato.nome, mensagens, handoffPendente: false, donoHumano: false };
+}
+
+export type ContatoBasico = { id: string; nome: string; telefoneDigitos: string };
+
+/** Contatos conhecidos (para o tick do Pilot). Supabase quando configurado; senão arquivo local. */
+export async function listarContatosBasicos(limite = 200): Promise<ContatoBasico[]> {
+  const viaSb = await withSupabase(async (sb) => {
+    const { data } = await sb
+      .from("crm_contatos")
+      .select("id,nome,telefone_digitos")
+      .not("telefone_digitos", "is", null)
+      .limit(limite);
+    return ((data ?? []) as { id: string; nome: string; telefone_digitos: string }[]).map((c) => ({
+      id: c.id,
+      nome: c.nome,
+      telefoneDigitos: c.telefone_digitos,
+    }));
+  });
+  if (viaSb) return viaSb;
+  return loadLocal()
+    .contatos.slice(0, limite)
+    .map((c) => ({ id: c.id, nome: c.nome, telefoneDigitos: c.telefoneDigitos }));
 }

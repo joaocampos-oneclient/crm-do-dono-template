@@ -4,7 +4,6 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { crmConfig } from "@crm/config";
 import type { AgenteSlug } from "./types";
 import {
   effectiveAgentLlmModel,
@@ -22,40 +21,8 @@ export {
   saveAgentLlmModel,
 } from "./llm-store";
 
-const REGRAS_GLOBAIS = [
-  "Você opera no CRM do dono (IA para Donos).",
-  "Cláudio nunca fala preço, desconto, parcela, valor ou condição comercial — se o rascunho tiver isso, bloqueie.",
-  "Ledger nunca cobra e nunca fica em modo automático.",
-  "Responda sempre em português brasileiro, curto e acionável.",
-  "Quando pedir JSON, devolva só JSON válido, sem markdown.",
-].join(" ");
-
-export function instructionsDoAgente(slug: AgenteSlug): string {
-  const a = crmConfig.agentes[slug];
-  const extras: Record<AgenteSlug, string> = {
-    claudio:
-      "Você redige mensagens WhatsApp amigáveis. Nunca mencione preço. Se o rascunho tiver preço, responda JSON {\"bloqueado\":true,\"motivo\":\"preco\",\"resumo\":\"...\"}. Senão: {\"bloqueado\":false,\"texto\":\"...\",\"resumo\":\"...\",\"acaoSugerida\":\"...\"}.",
-    scout:
-      'Classifique a conversa. JSON: {"rotulo":"...","confianca":0-1,"acao":"aguardar|retomar|handoff|nutrir|ignorar","porque":"...","resumo":"...","acaoSugerida":"..."}. Handoff se pediu preço/humano ou nota 9–10.',
-    scribe:
-      'Resuma a reunião e sugira follow-ups. JSON: {"resumo":"...","followups":["..."],"acaoSugerida":"..."}.',
-    ledger:
-      'Avalie risco de cancelamento nos 7 primeiros dias (logins). Nunca cobre. JSON: {"risco":bool,"resumo":"...","acaoSugerida":"...","nuncaCobra":true,"nuncaAutomatico":true,"logins7d":n,"diasDesdePagamento":n}.',
-    pilot:
-      'Prepare follow-up sem preço, respeitando cooldown 48h e teto 14 dias. JSON: {"texto":"...","resumo":"...","acaoSugerida":"...","cooldown":bool?,"pausado":bool?,"bloqueado":bool?}.',
-    eco: 'Monte briefing curto do lead. JSON: {"briefing":"...","resumo":"...","acaoSugerida":"Abrir na reunião."}.',
-    ember: [
-      "Você é o Ember (Relance), agente reciclador de oportunidades que opera sem aprovação humana por mensagem.",
-      "Analise o histórico real do lead (mensagens, notas, briefing, etapa), cruze com a base de conteúdo do negócio e notas de mercado, e tome uma decisão conservadora: \"abordar\", \"adiar\" ou \"ignorar\".",
-      "Na dúvida ou se o sinal for fraco/genérico, escolha \"ignorar\" ou \"adiar\" — calar é mais inteligente do que queimar o contato.",
-      "Se decidir \"abordar\", escreva 1 mensagem curta e natural de abertura para WhatsApp que: (1) prove que leu o histórico citando um fato concreto do lead; (2) conecte valor sem catálogo; (3) termine com 1 pergunta fechada e fácil de responder.",
-      "Zero intimidade falsa, zero clichê proibido (nunca use 'oi tudo bem sou fulano', 'oi, tudo bem? aqui é', 'passando para', 'oi sumido', 'condição especial esse mês').",
-      "Respeite estritamente `proibirPreco` (jamais cite R$, preço, desconto, parcela, boleto, pix, cupom ou condição comercial quando proibirPreco=true) e `temasProibidos`.",
-      'Responda estritamente em JSON válido: {"decisao":"abordar|adiar|ignorar","motivo":"...","gancho":"...","texto":"...","resumo":"..."}. Se decisao != "abordar", devolva "texto": "".',
-    ].join(" "),
-  };
-  return `${REGRAS_GLOBAIS}\nVocê é ${a.nome}: ${a.resumo}\n${extras[slug]}`;
-}
+export { instructionsDoAgente, REGRAS_GLOBAIS } from "./prompts";
+import { instructionsDoAgente } from "./prompts";
 
 export type LlmGenerateResult = {
   text: string;
@@ -68,12 +35,26 @@ export type LlmGenerateResult = {
  * Gera texto via Mastra Agent + Anthropic.
  * Retorna null se não houver chave ou se a chamada falhar (fallback = regras).
  */
-export async function gerarComLlm(opts: {
+export type GerarComLlmOpts = {
   slug: AgenteSlug;
   prompt: string;
   instructions?: string;
   modelOverride?: string;
-}): Promise<LlmGenerateResult | null> {
+};
+
+/**
+ * SÓ PARA TESTES: substitui a chamada ao modelo por uma função local (sem chave, sem rede).
+ * Passe `null` para voltar ao comportamento normal. Nunca use em código de produção.
+ */
+let geradorDeTeste: ((opts: GerarComLlmOpts) => Promise<LlmGenerateResult | null>) | null = null;
+export function __setLlmGeneratorForTests(
+  fn: ((opts: GerarComLlmOpts) => Promise<LlmGenerateResult | null>) | null,
+): void {
+  geradorDeTeste = fn;
+}
+
+export async function gerarComLlm(opts: GerarComLlmOpts): Promise<LlmGenerateResult | null> {
+  if (geradorDeTeste) return geradorDeTeste(opts);
   const apiKey = effectiveLlmApiKey();
   if (!apiKey) return null;
 

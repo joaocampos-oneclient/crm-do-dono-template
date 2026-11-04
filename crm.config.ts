@@ -32,7 +32,7 @@ export const crmConfig = {
     scout: { nome: "Scout", resumo: "Analisa conversas e silêncio; encontra momento de compra e faz handoff." },
     scribe: { nome: "Scribe", resumo: "Resume reuniões e gera atividades / follow-ups." },
     ledger: { nome: "Ledger", resumo: "Monitora risco de cancelamento nos 7 primeiros dias. Nunca automático. Nunca cobra." },
-    pilot: { nome: "Pilot", resumo: "Dispara follow-ups e atendimentos sem intervenção humana." },
+    pilot: { nome: "Pilot", resumo: "Prepara follow-ups sem preço, respeitando cooldown de 48h; envio automático só se o dono ligar o modo automático." },
     eco: { nome: "Eco", resumo: "Prepara briefing do lead antes da reunião." },
     ember: {
       nome: "Ember",

@@ -14,8 +14,9 @@ import {
 import { mencionaPreco, telefoneDigitos } from "@/domain/rules";
 import { executarAgente } from "@/lib/agents";
 import { temLlmKey } from "@/lib/agents/llm-store";
-import { getWhatsAppProvider, newIdempotencyKey, resolveProviderId } from "@/lib/whatsapp";
-import { effectiveApiKey, effectiveSessionId } from "@/lib/whatsapp/store";
+import { getWhatsAppProvider, newIdempotencyKey } from "@/lib/whatsapp";
+import { sessaoWhatsAppAtiva } from "@/lib/whatsapp/sessao";
+import { effectiveSessionId } from "@/lib/whatsapp/store";
 import type { EnvioResultado } from "@/lib/whatsapp/types";
 import { registrarOptOutReciclador } from "./engine";
 import {
@@ -40,13 +41,6 @@ function pediuAtendimentoHumano(texto: string): boolean {
   return /\b(?:humano|atendente|pessoa|vendedor|consultor|especialista|falar\s+com\s+algu[eé]m|me\s+liga|pode\s+me\s+ligar)\b/i.test(
     texto,
   );
-}
-
-function sessaoWhatsAppAtiva(): boolean {
-  if (resolveProviderId() === "waha") {
-    return Boolean(process.env.WAHA_BASE_URL?.trim());
-  }
-  return Boolean(effectiveApiKey() && effectiveSessionId());
 }
 
 export interface ResultadoHandoffReciclador {
