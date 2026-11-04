@@ -13,6 +13,7 @@ import {
   taxasFunilDe,
 } from "@/lib/crm/adapters";
 import { AgentesV3 } from "./agentes";
+import { RelanceV3 } from "./relance";
 import { ConversasV3 } from "./conversas";
 import { CrmEmpty } from "./empty";
 import { FunilTraveV3, FunilV3 } from "./funil";
@@ -147,6 +148,8 @@ export function CrmV3App() {
   } else if (base.startsWith("/contatos/")) {
     const id = base.slice("/contatos/".length);
     tela = <ContatoRapido contatoId={id} />;
+  } else if (base === "/relance") {
+    tela = <RelanceV3 />;
   } else if (base === "/agentes") {
     tela = <AgentesV3 />;
   } else if (base === "/trabalho") {

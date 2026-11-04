@@ -9,8 +9,8 @@ out
 coverage
 test-results
 playwright-report
-data/
-data/whatsapp-connection.json
+/data/
+/data/whatsapp-connection.json
 *.log
 tsconfig.tsbuildinfo
 .next/

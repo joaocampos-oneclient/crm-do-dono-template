@@ -9,23 +9,46 @@ export type LlmConnection = {
   provider: "anthropic";
   apiKey?: string;
   model?: string;
+  agentModels?: Record<string, string>;
   updatedAt: string;
 };
 
-const FILE = resolve(process.cwd(), "data/llm-connection.json");
+function connectionFile(): string {
+  return process.env.CRM_LLM_CONNECTION_FILE?.trim() || resolve(process.cwd(), "data/llm-connection.json");
+}
 
 export function loadLlmConnection(): LlmConnection | null {
   try {
-    if (!existsSync(FILE)) return null;
-    return JSON.parse(readFileSync(FILE, "utf8")) as LlmConnection;
+    const file = connectionFile();
+    if (!existsSync(file)) return null;
+    return JSON.parse(readFileSync(file, "utf8")) as LlmConnection;
   } catch {
     return null;
   }
 }
 
 export function saveLlmConnection(c: LlmConnection): void {
-  mkdirSync(dirname(FILE), { recursive: true });
-  writeFileSync(FILE, JSON.stringify(c, null, 2));
+  const file = connectionFile();
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify(c, null, 2));
+}
+
+export function saveAgentLlmModel(slug: string, model: string): void {
+  const prev = loadLlmConnection();
+  const nextModels: Record<string, string> = { ...(prev?.agentModels ?? {}) };
+  const trimmed = model.trim();
+  if (trimmed) {
+    nextModels[slug] = trimmed;
+  } else {
+    delete nextModels[slug];
+  }
+  saveLlmConnection({
+    provider: "anthropic",
+    apiKey: prev?.apiKey,
+    model: prev?.model,
+    agentModels: nextModels,
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 /** Chave efetiva: env tem prioridade; senão a colada na UI. */
@@ -44,6 +67,25 @@ export function effectiveLlmModel(): string {
     loadLlmConnection()?.model?.trim() ||
     "claude-haiku-4-5"
   );
+}
+
+/**
+ * Modelo por agente:
+ * override explícito -> CRM_EMBER_MODEL (se ember) -> agentModels[slug] -> "claude-sonnet-4-5" (se ember) -> effectiveLlmModel()
+ */
+export function effectiveAgentLlmModel(slug?: string, override?: string): string {
+  if (override?.trim()) return override.trim();
+  if (slug === "ember" && process.env.CRM_EMBER_MODEL?.trim()) {
+    return process.env.CRM_EMBER_MODEL.trim();
+  }
+  if (slug) {
+    const saved = loadLlmConnection()?.agentModels?.[slug]?.trim();
+    if (saved) return saved;
+  }
+  if (slug === "ember") {
+    return "claude-sonnet-4-5";
+  }
+  return effectiveLlmModel();
 }
 
 export function temLlmKey(): boolean {

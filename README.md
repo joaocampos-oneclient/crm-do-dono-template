@@ -111,7 +111,11 @@ Lista limpa. Contato completo quando você busca por nome. Ficha com o essencial
 
 <img src="docs/screenshots/desktop-agentes.png" alt="Agentes" width="860" />
 
-Seis papéis claros: **Cláudio** (conversa, não fecha), **Scout**, **Scribe**, **Ledger** (nunca cobra sozinho), **Pilot**, **Eco**. Você escolhe o modo. A chave de IA, se existir, é a **sua**.
+Sete papéis claros: **Cláudio** (conversa, não fecha), **Scout**, **Scribe**, **Ledger** (nunca cobra sozinho), **Pilot**, **Eco** e **Ember** (reciclador de oportunidades). Você escolhe o modo e pode dedicar um modelo mais forte só ao Ember. A chave de IA, se existir, é a **sua**.
+
+### Relance — garimpo de leads parados com contexto
+
+Em **Relance** (`#/relance`), o **Ember** entra conversa por conversa no que esfriou, cruza o histórico real com a base de conteúdo do negócio e decide se vale abordar agora ou se calar é mais inteligente. Quando vale, dispara a primeira mensagem dentro dos seus freios (ritmo, janela comercial, opt-out e parada de emergência) — sem aprovar mensagem por mensagem e sem aceitar lista fria só com telefone. Sem chave de IA, ele não envia nada.
 
 No celular, a casca cabe no bolso: Hoje · Funil · Conversas · Leads · Mais.
 

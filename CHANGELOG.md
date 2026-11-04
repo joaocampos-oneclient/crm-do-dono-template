@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 2026-11-04
+
+### Relance · Agente Ember (Reciclador de oportunidades)
+
+- Novo agente **Ember** (`ember`) com escolha de modelo próprio por agente (`CRM_EMBER_MODEL`, padrão `claude-sonnet-4-5`) e bloqueio estrito contra fallback genérico sem IA.
+- Nova tela isolada **Relance** (`#/relance`): campanhas de reabertura de leads com histórico real, simulação seca em 3 leads, parada de emergência, importação CSV com contexto obrigatório, lista permanente de opt-out e trilha de auditoria por lead.
+- Motor de fila e freios (`src/domain/reciclador.ts`, `src/lib/reciclador/`): teto por hora/dia, espaçamento entre envios, janela comercial, recusa de leads sem contexto mínimo, pausa automática se o WhatsApp desconectar e passagem de bastão ao atendimento quando o lead responde.
+- Novas ferramentas MCP `crm_reciclador_*` e migration aditiva `20261104000005_crm_ember_reciclador.sql`.
+- Correção no `.gitignore` (`/data/` ancorado na raiz) restaurando `src/data/exemplo.ts` no repositório.
+
 ## 1.0.0 — 2026-11-02
 
 ### Vitrine e documentação

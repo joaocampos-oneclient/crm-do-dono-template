@@ -34,6 +34,10 @@ export const crmConfig = {
     ledger: { nome: "Ledger", resumo: "Monitora risco de cancelamento nos 7 primeiros dias. Nunca automático. Nunca cobra." },
     pilot: { nome: "Pilot", resumo: "Dispara follow-ups e atendimentos sem intervenção humana." },
     eco: { nome: "Eco", resumo: "Prepara briefing do lead antes da reunião." },
+    ember: {
+      nome: "Ember",
+      resumo: "Recicla leads parados com contexto real e dispara a primeira mensagem sem aprovação humana, com freios.",
+    },
   },
 
   /** Cooldown mínimo entre mensagens automáticas do mesmo contato (horas). */

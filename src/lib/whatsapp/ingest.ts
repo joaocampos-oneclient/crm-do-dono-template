@@ -48,20 +48,24 @@ type LocalContato = {
 
 type LocalDb = { contatos: LocalContato[]; mensagens: LocalMsg[] };
 
-const FILE = resolve(process.cwd(), "data/whatsapp-mensagens.json");
+function localFile(): string {
+  return process.env.WHATSAPP_LOCAL_FILE?.trim() || resolve(process.cwd(), "data/whatsapp-mensagens.json");
+}
 
 function loadLocal(): LocalDb {
   try {
-    if (!existsSync(FILE)) return { contatos: [], mensagens: [] };
-    return JSON.parse(readFileSync(FILE, "utf8")) as LocalDb;
+    const file = localFile();
+    if (!existsSync(file)) return { contatos: [], mensagens: [] };
+    return JSON.parse(readFileSync(file, "utf8")) as LocalDb;
   } catch {
     return { contatos: [], mensagens: [] };
   }
 }
 
 function saveLocal(db: LocalDb) {
-  mkdirSync(dirname(FILE), { recursive: true });
-  writeFileSync(FILE, JSON.stringify(db, null, 2));
+  const file = localFile();
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify(db, null, 2));
 }
 
 function novoId() {
@@ -273,7 +277,25 @@ export async function ingestWhatsAppMessage(opts: {
     } satisfies IngestResult;
   });
 
-  if (viaSb) return viaSb;
+  const notificarReciclador = async (contatoId?: string) => {
+    if (opts.type !== "message.received" || !parsed.text?.trim()) return;
+    try {
+      const { processarRespostaLeadReciclador } = await import("@/lib/reciclador/handoff");
+      await processarRespostaLeadReciclador({
+        phoneDigits: phone,
+        contatoId,
+        texto: parsed.text.trim(),
+        timestamp: em,
+      });
+    } catch (e) {
+      console.warn("[whatsapp/ingest -> reciclador]", e instanceof Error ? e.message : e);
+    }
+  };
+
+  if (viaSb) {
+    await notificarReciclador(viaSb.contatoId);
+    return viaSb;
+  }
 
   // Local file fallback (recarrega depois do upsert — o upsert grava o arquivo)
   const { id: contatoId, criado } = await upsertContatoLocal(phone);
@@ -287,6 +309,7 @@ export async function ingestWhatsAppMessage(opts: {
     existing.eventId = opts.eventId;
     if (parsed.text && status === "received") existing.texto = parsed.text;
     saveLocal(db);
+    await notificarReciclador(contatoId);
     return { ok: true, contatoId, mensagemId: existing.id, atualizado: true, criadoContato: criado };
   }
 
@@ -305,6 +328,7 @@ export async function ingestWhatsAppMessage(opts: {
     eventId: opts.eventId,
   });
   saveLocal(db);
+  await notificarReciclador(contatoId);
   return { ok: true, contatoId, mensagemId, criadoContato: criado };
 }
 

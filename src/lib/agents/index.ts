@@ -1,9 +1,10 @@
 import { crmConfig } from "@crm/config";
 import { decidir } from "./decision-engine";
 import { mencionaPreco } from "@/domain/rules";
+import { avaliarGuardrailsPosLlm, mencionaPrecoComercial } from "@/domain/reciclador";
 import type { AgenteSlug, ExecucaoEntrada, ResultadoAgente } from "./types";
 import { ExecucaoSaida } from "./types";
-import { gerarComLlm, parseJsonDaResposta } from "./llm";
+import { effectiveAgentLlmModel, gerarComLlm, parseJsonDaResposta, temLlmKey } from "./llm";
 
 const cfg = crmConfig.agentes;
 
@@ -21,6 +22,8 @@ export async function executarAgente(slug: AgenteSlug, entrada: ExecucaoEntrada)
       return pilot(entrada);
     case "eco":
       return eco(entrada);
+    case "ember":
+      return ember(entrada);
     default: {
       const _x: never = slug;
       throw new Error(`Agente desconhecido: ${_x}`);
@@ -369,6 +372,215 @@ async function eco(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
       payload: { briefing },
     }),
   });
+}
+
+async function ember(entrada: ExecucaoEntrada): Promise<ResultadoAgente> {
+  if (!temLlmKey()) {
+    return baseRegras({
+      custoTokens: 0,
+      saida: ExecucaoSaida.parse({
+        resumo: "Ember bloqueado: sem chave LLM configurada (nunca usa fallback estático).",
+        acaoSugerida: "Configurar chave Anthropic para habilitar o Ember.",
+        requerAprovacao: false,
+        payload: {
+          decisao: "ignorar",
+          enviado: false,
+          bloqueado: true,
+          motivo: "sem_llm_configurado",
+        },
+      }),
+    });
+  }
+
+  const ctx = entrada.contexto ?? {};
+  const nome = String(ctx.nome ?? ctx.nomeContato ?? "Lead");
+  const empresa = String(ctx.empresa ?? "");
+  const etapa = String(ctx.etapa ?? ctx.etapaAtual ?? "conversa");
+  const objetivoCampanha = String(ctx.objetivoCampanha ?? ctx.objetivo ?? "Reabrir conversa com contexto real.");
+  const contextoExtraido = String(ctx.contextoExtraido ?? "");
+  const baseConteudo = String(ctx.baseConteudo ?? "");
+  const novidadesMercado = String(ctx.novidadesMercado ?? "");
+  const tomMarca = String(ctx.tomMarca ?? "Direto, consultivo, sem intimidade forçada.");
+  const proibirPreco = ctx.proibirPreco !== false;
+  const temasProibidos = Array.isArray(ctx.temasProibidos) ? ctx.temasProibidos.map(String) : [];
+  const modelOverride =
+    typeof ctx.modeloLlm === "string" && ctx.modeloLlm.trim()
+      ? ctx.modeloLlm.trim()
+      : typeof ctx.modelOverride === "string" && ctx.modelOverride.trim()
+        ? ctx.modelOverride.trim()
+        : undefined;
+
+  const prompt = JSON.stringify(
+    {
+      lead: { nome, empresa, etapa },
+      objetivoCampanha,
+      contextoHistorico: contextoExtraido,
+      mensagens: ctx.mensagens ?? [],
+      notas: ctx.notas ?? [],
+      briefing: ctx.briefing ?? null,
+      baseConteudoNegocio: baseConteudo,
+      novidadesMercado,
+      regras: {
+        tomMarca,
+        proibirPreco,
+        temasProibidos,
+      },
+    },
+    null,
+    2,
+  );
+
+  const llm = await gerarComLlm({
+    slug: "ember",
+    prompt,
+    modelOverride,
+  });
+
+  if (!llm) {
+    return baseRegras({
+      custoTokens: 0,
+      saida: ExecucaoSaida.parse({
+        resumo: "Ember bloqueado: falha ou resposta vazia do LLM.",
+        acaoSugerida: "Verificar chave/modelo LLM antes de tentar novamente.",
+        requerAprovacao: false,
+        payload: {
+          decisao: "ignorar",
+          enviado: false,
+          bloqueado: true,
+          motivo: "resposta_llm_invalida",
+        },
+      }),
+    });
+  }
+
+  const json = parseJsonDaResposta(llm.text);
+  const decisao = String(json?.decisao ?? "");
+  if (!json || !["abordar", "adiar", "ignorar"].includes(decisao)) {
+    return baseRegras({
+      custoTokens: llm.tokens,
+      saida: ExecucaoSaida.parse({
+        resumo: "Ember bloqueado: JSON de resposta do LLM inválido.",
+        acaoSugerida: "Não enviar quando o diagnóstico do modelo é ambíguo.",
+        requerAprovacao: false,
+        payload: {
+          decisao: "ignorar",
+          enviado: false,
+          bloqueado: true,
+          motivo: "resposta_llm_invalida",
+        },
+      }),
+    });
+  }
+
+  const modeloUsado = llm.modelId ?? effectiveAgentLlmModel("ember", modelOverride);
+  const motivo = String(json.motivo ?? "").trim() || "Diagnóstico concluído pelo Ember.";
+  const gancho = typeof json.gancho === "string" && json.gancho.trim() ? json.gancho.trim() : null;
+
+  if (decisao === "adiar" || decisao === "ignorar") {
+    return {
+      custoTokens: llm.tokens,
+      usadoJev: false,
+      usadoLlm: true,
+      saida: ExecucaoSaida.parse({
+        resumo: String(json.resumo ?? `Ember decidiu ${decisao}: ${motivo}`),
+        acaoSugerida: decisao === "adiar" ? "Aguardar novo sinal antes de abordar." : "Manter em silêncio.",
+        requerAprovacao: false,
+        payload: {
+          decisao,
+          enviado: false,
+          bloqueado: false,
+          motivo,
+          gancho,
+          texto: null,
+          modeloUsado,
+          viaLlm: true,
+        },
+      }),
+    };
+  }
+
+  const texto = typeof json.texto === "string" ? json.texto.trim() : "";
+  if (!texto) {
+    return baseRegras({
+      custoTokens: llm.tokens,
+      saida: ExecucaoSaida.parse({
+        resumo: "Ember bloqueado: decidiu abordar mas devolveu texto vazio.",
+        acaoSugerida: "Descartar envio sem mensagem válida.",
+        requerAprovacao: false,
+        payload: {
+          decisao: "ignorar",
+          enviado: false,
+          bloqueado: true,
+          motivo: "resposta_llm_invalida",
+        },
+      }),
+    });
+  }
+
+  if (proibirPreco && mencionaPrecoComercial(texto)) {
+    return {
+      custoTokens: llm.tokens,
+      usadoJev: false,
+      usadoLlm: true,
+      saida: ExecucaoSaida.parse({
+        resumo: "Ember bloqueado: abertura mencionou preço ou condição comercial.",
+        acaoSugerida: "Manter abertura focada no diagnóstico, sem oferta de preço.",
+        requerAprovacao: false,
+        payload: {
+          decisao: "ignorar",
+          enviado: false,
+          bloqueado: true,
+          motivo: "Bloqueado: abertura menciona preço, desconto ou condição comercial.",
+          codigoBloqueio: "menciona_preco",
+          modeloUsado,
+          viaLlm: true,
+        },
+      }),
+    };
+  }
+
+  const posCheck = avaliarGuardrailsPosLlm(texto, { proibirPreco }, temasProibidos);
+  if (!posCheck.ok) {
+    return {
+      custoTokens: llm.tokens,
+      usadoJev: false,
+      usadoLlm: true,
+      saida: ExecucaoSaida.parse({
+        resumo: `Ember bloqueado nos freios pós-LLM: ${posCheck.motivo}`,
+        acaoSugerida: "Revisar cercas ou contexto do lead.",
+        requerAprovacao: false,
+        payload: {
+          decisao: "ignorar",
+          enviado: false,
+          bloqueado: true,
+          motivo: posCheck.motivo ?? "bloqueado_guardrail",
+          codigoBloqueio: posCheck.codigo,
+          modeloUsado,
+          viaLlm: true,
+        },
+      }),
+    };
+  }
+
+  return {
+    custoTokens: llm.tokens,
+    usadoJev: false,
+    usadoLlm: true,
+    saida: ExecucaoSaida.parse({
+      resumo: String(json.resumo ?? `Ember preparou abertura para ${nome}.`),
+      acaoSugerida: "Disparar primeira mensagem e entregar resposta ao atendimento.",
+      requerAprovacao: false,
+      payload: {
+        decisao: "abordar",
+        bloqueado: false,
+        motivo,
+        gancho,
+        texto,
+        modeloUsado,
+        viaLlm: true,
+      },
+    }),
+  };
 }
 
 export { cfg as agentesConfig };

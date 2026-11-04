@@ -11,7 +11,12 @@ const SLUGS = Object.keys(crmConfig.agentes) as (keyof typeof crmConfig.agentes)
 
 export function Agentes() {
   const [modos, setModos] = React.useState<Record<string, Modo>>(() =>
-    Object.fromEntries(SLUGS.map((s) => [s, s === "claudio" ? "automatico" : s === "ledger" ? "sugerir" : "sugerir"])),
+    Object.fromEntries(
+      SLUGS.map((s) => {
+        const key = String(s);
+        return [key, key === "claudio" || key === "ember" ? "automatico" : key === "ledger" ? "sugerir" : "sugerir"];
+      }),
+    ),
   );
   const [saidas, setSaidas] = React.useState<Record<string, Resultado | string>>({});
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -28,17 +33,19 @@ export function Agentes() {
     setBusy(slug);
     try {
       const contexto =
-        slug === "scout"
-          ? { textoConversas: "Quero entrar, quanto custa?", minutosSilencio: 30, nota: 9, pediuPreco: true }
-          : slug === "ledger"
-            ? { logins7d: 1, diasDesdePagamento: 3 }
-            : slug === "eco"
-              ? { nome: "Renata", dor: "time comercial bagunçado", meta: "dobrar vendas", nota: 9 }
-              : slug === "pilot"
-                ? { horasDesdeUltimaAutomatica: 60, diasParado: 2, textoFollowup: "Posso te mandar um material útil?" }
-                : slug === "scribe"
-                  ? { notasReuniao: "Falou de dor no funil e pediu proposta até sexta." }
-                  : { rascunho: "Oi! Posso te fazer uma pergunta rápida?" };
+        slug === "ember"
+          ? { nome: "Marina", historico: "Pediu diagnóstico em setembro e parou antes da reunião" }
+          : slug === "scout"
+            ? { textoConversas: "Quero entrar, quanto custa?", minutosSilencio: 30, nota: 9, pediuPreco: true }
+            : slug === "ledger"
+              ? { logins7d: 1, diasDesdePagamento: 3 }
+              : slug === "eco"
+                ? { nome: "Renata", dor: "time comercial bagunçado", meta: "dobrar vendas", nota: 9 }
+                : slug === "pilot"
+                  ? { horasDesdeUltimaAutomatica: 60, diasParado: 2, textoFollowup: "Posso te mandar um material útil?" }
+                  : slug === "scribe"
+                    ? { notasReuniao: "Falou de dor no funil e pediu proposta até sexta." }
+                    : { rascunho: "Oi, posso te fazer uma pergunta rápida?" };
       const res = await fetch(`/api/agents/${slug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,7 +64,7 @@ export function Agentes() {
     <>
       <PageHead eyebrow="Equipe" title="Agentes">
         <p className="ds-muted" style={{ margin: "4px 0 0" }}>
-          Seis agentes. Três modos: sugerir, perguntar, automático. Ledger nunca fica automático e nunca cobra. Cláudio nunca fala preço.{" "}
+          Sete agentes. Três modos: sugerir, perguntar, automático. Ledger nunca fica automático e nunca cobra. Cláudio nunca fala preço.{" "}
           {llm?.configurada ? (
             <>LLM Anthropic ativo{llm.mascara ? <> (<code>{llm.mascara}</code>)</> : null} via Mastra.</>
           ) : (
@@ -68,31 +75,39 @@ export function Agentes() {
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
         {SLUGS.map((slug) => {
           const a = crmConfig.agentes[slug];
-          const out = saidas[slug];
+          const slugStr = String(slug);
+          const out = saidas[slugStr];
           return (
-            <Card key={slug} style={{ padding: 16, display: "grid", gap: 10 }}>
+            <Card key={slugStr} style={{ padding: 16, display: "grid", gap: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <strong>{a.nome}</strong>
-                <Badge tone="soft">{slug}</Badge>
+                <Badge tone="soft">{slugStr}</Badge>
               </div>
               <p className="ds-muted" style={{ margin: 0, fontSize: 14 }}>{a.resumo}</p>
               <Segmented
-                name={`modo-${slug}`}
+                name={`modo-${slugStr}`}
                 label={`Modo de ${a.nome}`}
-                value={modos[slug]}
+                value={modos[slugStr]}
                 onChange={(v) => {
-                  if (slug === "ledger" && v === "automatico") return;
-                  setModos((m) => ({ ...m, [slug]: v as Modo }));
+                  if (slugStr === "ledger" && v === "automatico") return;
+                  setModos((m) => ({ ...m, [slugStr]: v as Modo }));
                 }}
                 options={[
                   { value: "sugerir", label: "Sugerir" },
                   { value: "perguntar", label: "Perguntar" },
-                  { value: "automatico", label: "Auto", disabled: slug === "ledger" },
+                  { value: "automatico", label: "Auto", disabled: slugStr === "ledger" },
                 ]}
               />
-              <Button size="sm" onClick={() => rodar(slug)} disabled={busy === slug}>
-                {busy === slug ? "Rodando…" : "Executar exemplo"}
-              </Button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <Button size="sm" onClick={() => rodar(slugStr)} disabled={busy === slugStr}>
+                  {busy === slugStr ? "Rodando…" : "Executar exemplo"}
+                </Button>
+                {slugStr === "ember" && (
+                  <a href="#/relance" style={{ fontSize: 13 }}>
+                    Abrir Relance
+                  </a>
+                )}
+              </div>
               {out && (
                 <pre className="ds-pre" style={{ margin: 0, maxHeight: 160, overflow: "auto", fontSize: 12 }}>
                   {typeof out === "string" ? out : JSON.stringify(out, null, 2)}

@@ -59,10 +59,12 @@ export const MCP_TOOLS: McpTool[] = [
           { id: "conversas", arquivo: "src/screens/Conversas.tsx", job: "espelho WhatsApp" },
           { id: "contatos", arquivo: "src/screens/Contatos.tsx", job: "leads e clientes" },
           { id: "demandas", arquivo: "src/screens/Demandas.tsx", job: "CPL e funis de entrada" },
-          { id: "agentes", arquivo: "src/screens/Agentes.tsx", job: "6 agentes e modos" },
+          { id: "relance", arquivo: "src/crm-v3/relance.tsx", job: "reciclador de oportunidades (Ember)" },
+          { id: "agentes", arquivo: "src/screens/Agentes.tsx", job: "7 agentes e modos" },
           { id: "integracoes", arquivo: "src/screens/Integracoes.tsx", job: "MCP, WhatsApp, tokens" },
         ],
         regras: "src/domain/rules.ts",
+        reciclador: "src/domain/reciclador.ts",
         funil: "src/domain/funil.ts",
         config: "crm.config.ts",
         agentes: "src/lib/agents/",
@@ -72,7 +74,7 @@ export const MCP_TOOLS: McpTool[] = [
   },
   {
     name: "crm_regras_negocio",
-    description: "Lista as regras inegociáveis (preço, handoff, amostra, Ledger).",
+    description: "Lista as regras inegociáveis (preço, handoff, amostra, Ledger, Ember).",
     nivelMinimo: "leitura",
     inputSchema: z.object({}),
     async handler() {
@@ -81,6 +83,7 @@ export const MCP_TOOLS: McpTool[] = [
         "Handoff: nota 9–10, pediu preço, pediu humano ou quis entrar.",
         "Assumir/devolver gera aviso automático ao contato.",
         "Ledger nunca fica em Automático e nunca cobra.",
+        "Ember (Relance) só aborda leads com contexto real, nunca usa template estático sem LLM e respeita opt-out + freios de ritmo/horário.",
         "Amostra < 10 não vira porcentagem.",
         "Cooldown 48h entre mensagens automáticas; teto anti-loop 14 dias.",
       ]);
@@ -238,7 +241,7 @@ export const MCP_TOOLS: McpTool[] = [
   },
   {
     name: "crm_agentes_listar",
-    description: "Lista os 6 agentes e modos.",
+    description: "Lista os 7 agentes e modos.",
     nivelMinimo: "leitura",
     inputSchema: z.object({}),
     async handler() {
@@ -247,7 +250,7 @@ export const MCP_TOOLS: McpTool[] = [
   },
   {
     name: "crm_agente_executar",
-    description: "Executa um agente (scout, scribe, ledger, pilot, eco, claudio).",
+    description: "Executa um agente (scout, scribe, ledger, pilot, eco, claudio, ember).",
     nivelMinimo: "escrita",
     inputSchema: z.object({
       slug: AgenteSlug,
@@ -660,18 +663,239 @@ export const MCP_TOOLS: McpTool[] = [
   },
   {
     name: "crm_llm_status",
-    description: "Se a chave Anthropic do membro está configurada (agentes Mastra vs regras).",
+    description: "Se a chave Anthropic do membro está configurada (agentes Mastra vs regras) e modelos ativos.",
     nivelMinimo: "leitura",
     inputSchema: z.object({}),
     async handler() {
-      const { mascaraChave, effectiveLlmApiKey, effectiveLlmModel } = await import("@/lib/agents/llm-store");
+      const { mascaraChave, effectiveLlmApiKey, effectiveLlmModel, effectiveAgentLlmModel } = await import(
+        "@/lib/agents/llm-store"
+      );
       const key = effectiveLlmApiKey();
       return ok({
         configurada: Boolean(key),
         mascara: mascaraChave(key),
         model: effectiveLlmModel(),
+        emberModel: effectiveAgentLlmModel("ember"),
         modo: key ? "mastra+anthropic" : "regras locais",
       });
+    },
+  },
+
+  // --- Relance / Agente Ember (Reciclador de Oportunidades) ---
+  {
+    name: "crm_reciclador_listar",
+    description: "Lista campanhas, métricas honestas, opt-outs e fila auditável do Relance (Ember) com telefone mascarado.",
+    nivelMinimo: "leitura",
+    inputSchema: z.object({
+      campanhaId: z.string().optional(),
+      limiteItens: z.number().int().min(1).max(100).default(30),
+    }),
+    async handler(args) {
+      const a = z
+        .object({ campanhaId: z.string().optional(), limiteItens: z.number().default(30) })
+        .parse(args);
+      const { listarEstadoReciclador, obterDetalheCampanha } = await import("@/lib/reciclador");
+      if (a.campanhaId) {
+        const det = await obterDetalheCampanha(a.campanhaId);
+        if (!det.campanha) return err("Campanha não encontrada.");
+        return ok({
+          campanha: det.campanha,
+          metricas: det.metricas,
+          incidentes: det.incidentes,
+          itens: det.itens.slice(0, a.limiteItens).map(({ telefone: _t, ...rest }) => rest),
+        });
+      }
+      const estado = await listarEstadoReciclador();
+      return ok({
+        emergenciaGlobal: estado.emergenciaGlobal,
+        campanhas: estado.campanhas.map((c) => ({
+          ...c,
+          metricas: estado.metricasPorCampanha[c.id] ?? null,
+        })),
+        optOuts: estado.optOuts.map(({ telefoneDigitos: _d, ...rest }) => rest),
+        incidentes: estado.incidentes.slice(0, 20),
+      });
+    },
+  },
+  {
+    name: "crm_reciclador_criar",
+    description: "Cria campanha do Relance (Ember) em modo rascunho e popula elegíveis do CRM.",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({
+      nome: z.string().min(1),
+      objetivo: z.string().min(1),
+      baseConteudo: z.string().optional(),
+      novidadesMercado: z.string().optional(),
+      horasParadoMin: z.number().int().min(0).default(48),
+      popularDoCrm: z.boolean().default(true),
+    }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z
+        .object({
+          nome: z.string().min(1),
+          objetivo: z.string().min(1),
+          baseConteudo: z.string().optional(),
+          novidadesMercado: z.string().optional(),
+          horasParadoMin: z.number().default(48),
+          popularDoCrm: z.boolean().default(true),
+        })
+        .parse(args);
+      const { criarCampanhaReciclador } = await import("@/lib/reciclador");
+      const criada = await criarCampanhaReciclador({
+        nome: a.nome,
+        objetivo: a.objetivo,
+        popularDoCrm: a.popularDoCrm,
+        filtro: {
+          etapas: ["conversa", "handoff", "briefing", "proposta", "oferta"],
+          horasParadoMin: a.horasParadoMin,
+          apenasComContexto: true,
+        },
+        fontes: {
+          usarHistoricoMensagens: true,
+          usarNotas: true,
+          baseConteudo: a.baseConteudo ?? "",
+          novidadesMercado: a.novidadesMercado ?? "",
+          temasProibidos: [],
+        },
+      });
+      ctx.audit("crm_reciclador_criar", { campanhaId: criada.campanha.id, nome: criada.campanha.nome });
+      return ok({
+        campanha: criada.campanha,
+        metricas: criada.metricas,
+        totalItensNaFila: criada.itens.length,
+      });
+    },
+  },
+  {
+    name: "crm_reciclador_simular",
+    description: "Simula o diagnóstico e a 1ª mensagem do Ember em N leads (default 3) sem disparar nada no WhatsApp.",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({
+      campanhaId: z.string().min(1),
+      limite: z.number().int().min(1).max(10).default(3),
+    }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z.object({ campanhaId: z.string().min(1), limite: z.number().default(3) }).parse(args);
+      const { simularCampanhaReciclador } = await import("@/lib/reciclador");
+      const r = await simularCampanhaReciclador(a.campanhaId, a.limite);
+      ctx.audit("crm_reciclador_simular", { campanhaId: a.campanhaId, processados: r.processados });
+      return ok({
+        ...r,
+        itens: r.itens.map(({ telefone: _t, ...rest }) => rest),
+      });
+    },
+  },
+  {
+    name: "crm_reciclador_tick",
+    description: "Executa um ciclo controlado de envio do Ember nas campanhas ativas respeitando freios, janela e sessão.",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({
+      campanhaId: z.string().optional(),
+      limite: z.number().int().min(1).max(10).default(3),
+      ignorarJanela: z.boolean().default(false),
+    }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z
+        .object({
+          campanhaId: z.string().optional(),
+          limite: z.number().default(3),
+          ignorarJanela: z.boolean().default(false),
+        })
+        .parse(args);
+      const { executarTickReciclador } = await import("@/lib/reciclador");
+      const r = await executarTickReciclador({
+        campanhaId: a.campanhaId,
+        limite: a.limite,
+        ignorarJanela: a.ignorarJanela,
+      });
+      ctx.audit("crm_reciclador_tick", {
+        campanhaId: a.campanhaId ?? "todas_ativas",
+        enviados: r.enviados,
+        bloqueados: r.bloqueados,
+      });
+      return ok({
+        ...r,
+        itensProcessados: r.itensProcessados.map(({ telefone: _t, ...rest }) => rest),
+      });
+    },
+  },
+  {
+    name: "crm_reciclador_emergencia",
+    description: "Aciona parada de emergência imediata em uma campanha ou em todo o Relance.",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({
+      campanhaId: z.string().optional(),
+      motivo: z.string().optional(),
+    }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z.object({ campanhaId: z.string().optional(), motivo: z.string().optional() }).parse(args);
+      const { acionarParadaEmergenciaGlobal, atualizarCampanhaReciclador } = await import("@/lib/reciclador");
+      if (a.campanhaId) {
+        const det = await atualizarCampanhaReciclador(a.campanhaId, { acao: "emergencia" });
+        ctx.audit("crm_reciclador_emergencia", { escopo: "campanha", campanhaId: a.campanhaId });
+        return ok({ escopo: "campanha", campanha: det.campanha });
+      }
+      const res = await acionarParadaEmergenciaGlobal(a.motivo);
+      ctx.audit("crm_reciclador_emergencia", { escopo: "global", pausadas: res.pausadas });
+      return ok({ escopo: "global", ...res });
+    },
+  },
+  {
+    name: "crm_reciclador_optout",
+    description: "Registra opt-out / não contato permanente para um telefone e bloqueia itens pendentes.",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({
+      telefone: z.string().min(8),
+      nomeContato: z.string().optional(),
+      evidencia: z.string().optional(),
+    }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z
+        .object({
+          telefone: z.string().min(8),
+          nomeContato: z.string().optional(),
+          evidencia: z.string().optional(),
+        })
+        .parse(args);
+      const { registrarOptOutReciclador } = await import("@/lib/reciclador");
+      const res = await registrarOptOutReciclador({
+        telefone: a.telefone,
+        nomeContato: a.nomeContato,
+        motivo: "manual",
+        evidencia: a.evidencia ?? "Opt-out registrado via MCP",
+      });
+      ctx.audit("crm_reciclador_optout", {
+        telefone: mascararTelefone(a.telefone),
+        itensBloqueados: res.itensBloqueados,
+      });
+      const { telefoneDigitos: _d, ...optOutSeguro } = res.optOut;
+      return ok({ optOut: optOutSeguro, itensBloqueados: res.itensBloqueados });
+    },
+  },
+  {
+    name: "crm_reciclador_importar_csv",
+    description: "Importa CSV de leads para uma campanha do Relance rejeitando linhas frias sem contexto.",
+    nivelMinimo: "escrita",
+    inputSchema: z.object({
+      campanhaId: z.string().min(1),
+      csv: z.string().min(1),
+    }),
+    async handler(args, ctx) {
+      if (!nivelPodeEscrever(ctx.nivel)) return err("Token só de leitura.");
+      const a = z.object({ campanhaId: z.string().min(1), csv: z.string().min(1) }).parse(args);
+      const { importarCsvNaCampanha } = await import("@/lib/reciclador");
+      const res = await importarCsvNaCampanha(a.campanhaId, a.csv);
+      ctx.audit("crm_reciclador_importar_csv", {
+        campanhaId: a.campanhaId,
+        importados: res.importados,
+        rejeitadosSemContexto: res.rejeitadosSemContexto,
+      });
+      return ok(res);
     },
   },
 ];

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const ModoAgente = z.enum(["sugerir", "perguntar", "automatico"]);
 export type ModoAgente = z.infer<typeof ModoAgente>;
 
-export const AgenteSlug = z.enum(["claudio", "scout", "scribe", "ledger", "pilot", "eco"]);
+export const AgenteSlug = z.enum(["claudio", "scout", "scribe", "ledger", "pilot", "eco", "ember"]);
 export type AgenteSlug = z.infer<typeof AgenteSlug>;
 
 export const ExecucaoEntrada = z.object({

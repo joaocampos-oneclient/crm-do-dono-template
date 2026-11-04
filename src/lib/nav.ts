@@ -13,6 +13,7 @@ export const NAV_DESKTOP: NavDef[] = [
   { id: "funil", label: "Funil", grupo: "Operação" },
   { id: "conversas", label: "Conversas", grupo: "Operação" },
   { id: "contatos", label: "Contatos", grupo: "Operação" },
+  { id: "relance", label: "Relance", grupo: "Operação" },
   { id: "agentes", label: "Agentes", grupo: "Operação" },
   { id: "demandas", label: "Demandas", grupo: "Gestão" },
   { id: "relatorios", label: "Relatórios", grupo: "Gestão" },
