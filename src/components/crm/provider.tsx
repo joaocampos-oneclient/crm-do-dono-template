@@ -10,13 +10,13 @@ import type { ContatoCompleto, EstadoCRM, Operador } from "@/domain/types";
 import { contatosCompletos, montarContato } from "@/domain/visao";
 import type { RepositorioCRM } from "@/repo";
 
-export type Tela = "demandas" | "hoje" | "funil" | "conversas" | "contatos" | "agentes" | "playbook" | "produtos" | "operadores" | "templates" | "relatorios" | "ocorrencias" | "integracoes";
+export type Tela = "demandas" | "hoje" | "funil" | "conversas" | "contatos" | "relance" | "agentes" | "playbook" | "produtos" | "operadores" | "templates" | "relatorios" | "ocorrencias" | "integracoes";
 export interface Rota { tela: Tela; id?: string }
 
 /** Home Desktop/Mobile v2. */
 export const TELA_PADRAO: Tela = "hoje";
 
-const TELAS: Tela[] = ["demandas", "hoje", "funil", "conversas", "contatos", "agentes", "playbook", "produtos", "operadores", "templates", "relatorios", "ocorrencias", "integracoes"];
+const TELAS: Tela[] = ["demandas", "hoje", "funil", "conversas", "contatos", "relance", "agentes", "playbook", "produtos", "operadores", "templates", "relatorios", "ocorrencias", "integracoes"];
 
 export const lerRota = (hash: string): Rota => {
   const [tela, id] = hash.replace(/^#\/?/, "").split("/");

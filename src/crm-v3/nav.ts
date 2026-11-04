@@ -22,6 +22,7 @@ export const NAV_CASA: NavItem[] = [
 
 export const NAV_TRABALHO: NavItem[] = [
   { id: "trabalho", label: "Trabalho", href: "/trabalho", icon: "work", badgeKey: "work" },
+  { id: "relance", label: "Relance", href: "/relance", icon: "spark" },
   { id: "agentes", label: "Agentes", href: "/agentes", icon: "agents" },
 ];
 

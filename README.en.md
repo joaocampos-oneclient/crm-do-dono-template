@@ -111,7 +111,11 @@ A clean list. Full contact when you search by name. A record with enough to call
 
 <img src="docs/screenshots/desktop-agentes.png" alt="Agents" width="860" />
 
-Six clear roles: **Cláudio** (talks, doesn’t close), **Scout**, **Scribe**, **Ledger** (never charges alone), **Pilot**, **Eco**. You pick the mode. The AI key, if any, is **yours**.
+Seven clear roles: **Cláudio** (talks, doesn’t close), **Scout**, **Scribe**, **Ledger** (never charges alone), **Pilot**, **Eco**, and **Ember** (opportunity recycler). You pick the mode and can dedicate a stronger model specifically to Ember. The AI key, if any, is **yours**.
+
+### Relance — mining stalled leads with real context
+
+In **Relance** (`#/relance`), **Ember** reads stalled conversations one by one, crosses real history with your business content, and decides whether to reach out now or stay silent. When worth it, it sends the opening message inside your guardrails (rate limits, business hours, opt-out, and emergency stop) — without per-message approval and without accepting phone-only cold lists. Without an AI key, it never sends anything.
 
 On the phone, the shell fits in a pocket: Today · Funnel · Conversations · Leads · More.
 

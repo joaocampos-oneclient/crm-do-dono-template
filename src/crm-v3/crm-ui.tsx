@@ -7,7 +7,7 @@
 import * as React from "react";
 import { indiceEtapa, type StageIndex } from "@/lib/crm/etapas-chip";
 
-export type AgentId = "scout" | "scribe" | "ledger" | "pilot" | "echo";
+export type AgentId = "scout" | "scribe" | "ledger" | "pilot" | "echo" | "ember";
 export type Owner = AgentId | "claudio" | "otavio" | "joao" | "guilherme";
 export type Thermo = "frio" | "morno" | "quente";
 export const STAGES = ["Novo", "Cláudio", "Handoff", "Briefing", "Proposta", "Oferta", "Pago", "Dentro"] as const;
@@ -22,6 +22,7 @@ const ICONS = {
   clients: ["M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20", "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z", "m16 11 2 2 4-4"],
   work: ["M10 6h10", "M10 12h10", "M10 18h10", "m3.5 6 1.5 1.5L7.5 5", "m3.5 12 1.5 1.5 2.5-2.5", "m3.5 18 1.5 1.5 2.5-2.5"],
   agents: ["M12 8V4H8", "M6 8h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z", "M2 14h2", "M20 14h2", "M9 13v2", "M15 13v2"],
+  spark: ["M12 3c.9 3.6 2.8 5.5 6.4 6.4-3.6.9-5.5 2.8-6.4 6.4-.9-3.6-2.8-5.5-6.4-6.4 3.6-.9 5.5-2.8 6.4-6.4Z", "M18.5 16.5v4", "M16.5 18.5h4"],
   demand: ["m3 17 6-6 4 4 8-8", "M14 7h7v7"],
   score: ["M4 20V11", "M10 20V5", "M16 20v-6", "M21 20H3"],
   goals: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z", "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z", "M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"],
@@ -75,13 +76,14 @@ export function AgentGlyph({ agent, size = 14 }: { agent: AgentId | "claudio"; s
       />
     );
   }
-  const c = `var(--ag-${agent})`;
+  const c = agent === "ember" ? "var(--ag-ember, #d97706)" : `var(--ag-${agent})`;
   const shape = {
     scout: <circle cx={8} cy={8} r={5} fill="none" stroke={c} strokeWidth={2} />,
     scribe: <path d="M8 2.5 13.5 8 8 13.5 2.5 8Z" fill={c} />,
     ledger: <path d="M4 13V7a4 4 0 0 1 8 0v6" fill="none" stroke={c} strokeWidth={2} />,
     pilot: <path d="M8 2.5 14 13H2Z" fill={c} />,
     echo: <path d="M8 1.8 13.4 4.9v6.2L8 14.2 2.6 11.1V4.9Z" fill={c} />,
+    ember: <path d="M8 1.6c1.1 3 2.7 4.6 5.7 5.7-3 1.1-4.6 2.7-5.7 5.7-1.1-3-2.7-4.6-5.7-5.7 3-1.1 4.6-2.7 5.7-5.7Z" fill={c} />,
   }[agent];
   return (
     <svg aria-hidden width={size} height={size} viewBox="0 0 16 16" style={{ flex: "none" }}>
@@ -96,6 +98,7 @@ const OWNER_NAME: Record<Owner, string> = {
   ledger: "Ledger",
   pilot: "Pilot",
   echo: "Echo",
+  ember: "Ember",
   claudio: "Cláudio",
   otavio: "Otávio",
   joao: "João",
@@ -484,7 +487,7 @@ export function TimelineItem({
   time: string;
   tag: string;
 }) {
-  const isAgent = ["scout", "scribe", "ledger", "pilot", "echo", "claudio"].includes(who);
+  const isAgent = ["scout", "scribe", "ledger", "pilot", "echo", "ember", "claudio"].includes(who);
   return (
     <li
       style={{

@@ -43,7 +43,9 @@ No SQL Editor do Supabase, rode na ordem:
 1. `supabase/migrations/20261102000000_crm_casa.sql`
 2. `supabase/migrations/20261102000002_crm_agentes.sql`
 3. `supabase/migrations/20261102000003_crm_whatsapp_wpp_engine.sql`
-4. `supabase/migrations/20261102000001_crm_seed_demo.sql` (opcional)
+4. `supabase/migrations/20261102000004_crm_mensagens_whatsapp.sql`
+5. `supabase/migrations/20261104000005_crm_ember_reciclador.sql`
+6. `supabase/migrations/20261102000001_crm_seed_demo.sql` (opcional)
 
 Ou: `npm run db:push` e cole `supabase/all.sql`.
 

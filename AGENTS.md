@@ -15,8 +15,9 @@ Você está editando o CRM do dono (IA para Donos). O usuário é empreendedor, 
 | Config da empresa / produtos / funis | `crm.config.ts` |
 | Regras puras (preço, nota, prazo) | `src/domain/rules.ts` |
 | 8 etapas + playbook | `src/domain/funil.ts` |
-| Telas | `src/screens/` |
-| Agentes (Cláudio, Scout, Scribe, Ledger, Pilot, Eco) | `src/lib/agents/` |
+| Telas | `src/screens/` e `src/crm-v3/` |
+| Agentes (Cláudio, Scout, Scribe, Ledger, Pilot, Eco, Ember) | `src/lib/agents/` |
+| Relance · Reciclador de oportunidades (Ember) | `src/domain/reciclador.ts` · `src/lib/reciclador/` · `src/crm-v3/relance.tsx` · `src/app/api/reciclador/` |
 | MCP (Cursor / GrokBot) | `src/lib/mcp/` + `src/app/api/mcp/crm/` |
 | WhatsApp (WPP Engine padrão) | `src/lib/whatsapp/` · contrato `docs/wpp-engine-contrato.md` · WAHA opcional `docker-compose.waha.yml` |
 | Migrations | `supabase/migrations/` |
@@ -26,6 +27,7 @@ Você está editando o CRM do dono (IA para Donos). O usuário é empreendedor, 
 
 - Cláudio **nunca** fala preço / desconto / parcela / condição (`mencionaPreco`, `podeRoboEnviar`).
 - Ledger **nunca** fica em Automático e **nunca** cobra.
+- Ember (Relance) **nunca** dispara texto estático sem chave LLM ativa e **nunca** ignora opt-out, contexto mínimo ou parada de emergência.
 - Modelo Contato → Oportunidades e o schema SQL.
 - Promete-se ativo entregue, nunca faturamento. Sem emoji, sem exclamação.
 

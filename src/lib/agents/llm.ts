@@ -6,9 +6,21 @@ import { Agent } from "@mastra/core/agent";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { crmConfig } from "@crm/config";
 import type { AgenteSlug } from "./types";
-import { effectiveLlmApiKey, effectiveLlmModel, temLlmKey } from "./llm-store";
+import {
+  effectiveAgentLlmModel,
+  effectiveLlmApiKey,
+  effectiveLlmModel,
+  saveAgentLlmModel,
+  temLlmKey,
+} from "./llm-store";
 
-export { temLlmKey, effectiveLlmApiKey, effectiveLlmModel } from "./llm-store";
+export {
+  temLlmKey,
+  effectiveLlmApiKey,
+  effectiveLlmModel,
+  effectiveAgentLlmModel,
+  saveAgentLlmModel,
+} from "./llm-store";
 
 const REGRAS_GLOBAIS = [
   "Você opera no CRM do dono (IA para Donos).",
@@ -32,6 +44,15 @@ export function instructionsDoAgente(slug: AgenteSlug): string {
     pilot:
       'Prepare follow-up sem preço, respeitando cooldown 48h e teto 14 dias. JSON: {"texto":"...","resumo":"...","acaoSugerida":"...","cooldown":bool?,"pausado":bool?,"bloqueado":bool?}.',
     eco: 'Monte briefing curto do lead. JSON: {"briefing":"...","resumo":"...","acaoSugerida":"Abrir na reunião."}.',
+    ember: [
+      "Você é o Ember (Relance), agente reciclador de oportunidades que opera sem aprovação humana por mensagem.",
+      "Analise o histórico real do lead (mensagens, notas, briefing, etapa), cruze com a base de conteúdo do negócio e notas de mercado, e tome uma decisão conservadora: \"abordar\", \"adiar\" ou \"ignorar\".",
+      "Na dúvida ou se o sinal for fraco/genérico, escolha \"ignorar\" ou \"adiar\" — calar é mais inteligente do que queimar o contato.",
+      "Se decidir \"abordar\", escreva 1 mensagem curta e natural de abertura para WhatsApp que: (1) prove que leu o histórico citando um fato concreto do lead; (2) conecte valor sem catálogo; (3) termine com 1 pergunta fechada e fácil de responder.",
+      "Zero intimidade falsa, zero clichê proibido (nunca use 'oi tudo bem sou fulano', 'oi, tudo bem? aqui é', 'passando para', 'oi sumido', 'condição especial esse mês').",
+      "Respeite estritamente `proibirPreco` (jamais cite R$, preço, desconto, parcela, boleto, pix, cupom ou condição comercial quando proibirPreco=true) e `temasProibidos`.",
+      'Responda estritamente em JSON válido: {"decisao":"abordar|adiar|ignorar","motivo":"...","gancho":"...","texto":"...","resumo":"..."}. Se decisao != "abordar", devolva "texto": "".',
+    ].join(" "),
   };
   return `${REGRAS_GLOBAIS}\nVocê é ${a.nome}: ${a.resumo}\n${extras[slug]}`;
 }
@@ -39,6 +60,7 @@ export function instructionsDoAgente(slug: AgenteSlug): string {
 export type LlmGenerateResult = {
   text: string;
   tokens: number;
+  modelId?: string;
   raw?: unknown;
 };
 
@@ -50,13 +72,14 @@ export async function gerarComLlm(opts: {
   slug: AgenteSlug;
   prompt: string;
   instructions?: string;
+  modelOverride?: string;
 }): Promise<LlmGenerateResult | null> {
   const apiKey = effectiveLlmApiKey();
   if (!apiKey) return null;
 
   try {
     const anthropic = createAnthropic({ apiKey });
-    const modelId = effectiveLlmModel();
+    const modelId = effectiveAgentLlmModel(opts.slug, opts.modelOverride);
     const agent = new Agent({
       id: opts.slug,
       name: opts.slug,
@@ -85,7 +108,7 @@ export async function gerarComLlm(opts: {
     }
     if (!tokens) tokens = 1;
 
-    return { text, tokens, raw: result };
+    return { text, tokens, modelId, raw: result };
   } catch (e) {
     console.warn("[llm]", opts.slug, e instanceof Error ? e.message : e);
     return null;

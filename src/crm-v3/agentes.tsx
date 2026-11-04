@@ -5,7 +5,8 @@ import { AgentGlyph, ModeSelector, NewFieldMark, type AgentId, type AgentMode } 
 import { CrmV3Page } from "./frame";
 import { PageChrome } from "./page-chrome";
 
-const TIME: Array<{ id: AgentId; nome: string; faz: string }> = [
+const TIME: Array<{ id: AgentId; nome: string; faz: string; href?: string }> = [
+  { id: "ember", nome: "Ember", faz: "Garimpa histórico parado e dispara a abertura com freios.", href: "#/relance" },
   { id: "scout", nome: "Scout", faz: "Procura sinais e quem voltar a falar." },
   { id: "scribe", nome: "Scribe", faz: "Resume ligação e escreve o follow-up." },
   { id: "ledger", nome: "Ledger", faz: "Olha número. Nunca automático e nunca cobra." },
@@ -16,6 +17,7 @@ const TIME: Array<{ id: AgentId; nome: string; faz: string }> = [
 /** Modos locais: ainda não gravam. Sem migration e sem flag nova do Cláudio. */
 export function AgentesV3() {
   const [modos, setModos] = useState<Record<AgentId, AgentMode>>({
+    ember: "auto",
     scout: "suggest",
     scribe: "ask",
     ledger: "suggest",
@@ -28,16 +30,22 @@ export function AgentesV3() {
       <PageChrome
         label="Agentes"
         title="O time que trabalha com você."
-        lede="Modos ainda não gravam no banco. Ledger nunca fica em Automático e nunca cobra."
+        lede="Modos ainda não gravam no banco. Ledger nunca fica em Automático e nunca cobra. Ember opera em campanhas próprias no Relance."
       />
       <div style={{ display: "grid", gap: 12 }}>
         {TIME.map((a) => (
           <div key={a.id} className="crm-v3-surface">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <AgentGlyph agent={a.id} />
               <strong style={{ font: "600 15px var(--font-sans)" }}>{a.nome}</strong>
               <span style={{ color: "var(--fg-2)", font: "400 13px var(--font-sans)" }}>{a.faz}</span>
-              <NewFieldMark />
+              {a.href ? (
+                <a href={a.href} className="crm-v3-pill" style={{ marginLeft: "auto", minHeight: 30, fontSize: 12 }}>
+                  Abrir Relance
+                </a>
+              ) : (
+                <NewFieldMark />
+              )}
             </div>
             <ModeSelector agent={a.id} value={modos[a.id]} onChange={(m) => setModos((s) => ({ ...s, [a.id]: m }))} />
           </div>
